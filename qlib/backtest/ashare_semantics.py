@@ -673,6 +673,12 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "rdagent_model_output_format_rule": (
             "rdagent_model_experiment_output_format_must_describe_prediction_as_score_column_indexed_by_datetime_and_instrument_not_graph_node_output"
         ),
+        "rdagent_model_task_boundary_rule": (
+            "rdagent_qlib_model_tasks_must_carry_prediction_signal_score_boundary_to_model_implementation_coder"
+        ),
+        "rdagent_implementation_prompt_paths": [
+            "rdagent/components/coder/model_coder/prompts.yaml",
+        ],
         "rdagent_prompt_paths": [
             "rdagent/scenarios/qlib/experiment/prompts.yaml",
             "rdagent/scenarios/qlib/prompts.yaml",

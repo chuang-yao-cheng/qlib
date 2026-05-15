@@ -880,6 +880,12 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "rdagent_model_output_format_rule": (
             "rdagent_model_experiment_output_format_must_describe_prediction_as_score_column_indexed_by_datetime_and_instrument_not_graph_node_output"
         ),
+        "rdagent_model_task_boundary_rule": (
+            "rdagent_qlib_model_tasks_must_carry_prediction_signal_score_boundary_to_model_implementation_coder"
+        ),
+        "rdagent_implementation_prompt_paths": [
+            "rdagent/components/coder/model_coder/prompts.yaml",
+        ],
         "rdagent_prompt_paths": [
             "rdagent/scenarios/qlib/experiment/prompts.yaml",
             "rdagent/scenarios/qlib/prompts.yaml",
@@ -2164,6 +2170,13 @@ def test_ashare_prediction_signal_contract_matches_runtime_sources() -> None:
         signal_semantics["rdagent_model_output_format_rule"]
         == "rdagent_model_experiment_output_format_must_describe_prediction_as_score_column_indexed_by_datetime_and_instrument_not_graph_node_output"
     )
+    assert (
+        signal_semantics["rdagent_model_task_boundary_rule"]
+        == "rdagent_qlib_model_tasks_must_carry_prediction_signal_score_boundary_to_model_implementation_coder"
+    )
+    assert signal_semantics["rdagent_implementation_prompt_paths"] == [
+        "rdagent/components/coder/model_coder/prompts.yaml",
+    ]
     assert signal_semantics["rdagent_prompt_paths"] == [
         "rdagent/scenarios/qlib/experiment/prompts.yaml",
         "rdagent/scenarios/qlib/prompts.yaml",
@@ -2832,6 +2845,13 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
         round_tripped["prompt_projection_payload"]["strategy_order_semantics"]["topk_strategy_authority"]
         == "qlib.contrib.strategy.signal_strategy.TopkDropoutStrategy.generate_trade_decision"
     )
+    assert (
+        round_tripped["prompt_projection_payload"]["prediction_signal_semantics"]["rdagent_model_task_boundary_rule"]
+        == "rdagent_qlib_model_tasks_must_carry_prediction_signal_score_boundary_to_model_implementation_coder"
+    )
+    assert round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
+        "rdagent_implementation_prompt_paths"
+    ] == ["rdagent/components/coder/model_coder/prompts.yaml"]
     assert (
         round_tripped["prompt_projection_payload"]["signal_ic_semantics"]["rdagent_rule"]
         == "describe_only_do_not_redefine_signal_ic_or_rank_ic_metrics"
