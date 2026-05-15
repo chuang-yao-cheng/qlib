@@ -334,7 +334,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         "relationship_rule": (
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine trade unit, position, execution-price, price-adjustment, "
-            "suspension/tradability, price-limit, settlement, cash/shorting, or cost semantics."
+            "suspension/tradability, price-limit, settlement, cash/shorting, liquidity/capacity, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -354,6 +354,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert "redefine_cash_buying_power_or_shorting_policy" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    assert "redefine_liquidity_or_volume_capacity_policy" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_cost_model_or_exchange_kwargs" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert set(contract["failure_semantics"].values()) == {"fail_closed"}
     assert "instrument_identity_semantics" in contract["rdagent_must_not_redefine"]
@@ -364,6 +365,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "price_limit_semantics" in contract["rdagent_must_not_redefine"]
     assert "settlement_semantics" in contract["rdagent_must_not_redefine"]
     assert "cash_constraint_semantics" in contract["rdagent_must_not_redefine"]
+    assert "liquidity_capacity_semantics" in contract["rdagent_must_not_redefine"]
     assert "cost_model" in contract["rdagent_must_not_redefine"]
     assert contract["market_semantics"]["region"] == "cn"
     assert contract["market_semantics"]["trade_unit"] == 100
@@ -545,6 +547,21 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "position_cash_authority": "qlib.backtest.position.Position.get_cash",
         "rdagent_rule": "describe_only_do_not_redefine_cash_or_shorting_policy",
     }
+    assert prompt_payload["liquidity_capacity_semantics"] == {
+        "semantic_name": "a_share_volume_capacity_limit",
+        "volume_field": "$volume",
+        "capacity_parameter": "volume_threshold",
+        "capacity_scope": "runtime_handoff_only_when_volume_threshold_is_configured",
+        "default_capacity_rule": "no_prompt_defined_capacity_limit_in_default_joinquant_ashare_contract",
+        "volume_limit_aggregation_rule": "multiple_volume_limits_are_aggregated_by_min",
+        "cumulative_limit_rule": "cum_volume_limits_subtract_dealt_order_amount",
+        "current_limit_rule": "current_volume_limits_use_current_quote_value",
+        "dealt_order_state": "dealt_order_amount",
+        "capacity_clip_rule": "order_deal_amount_is_clipped_to_nonnegative_configured_volume_capacity",
+        "runtime_authority": "qlib.backtest.exchange.Exchange._clip_amount_by_volume",
+        "threshold_parser_authority": "qlib.backtest.exchange.Exchange._get_vol_limit",
+        "rdagent_rule": "describe_only_do_not_redefine_liquidity_or_volume_capacity",
+    }
     assert prompt_payload["order_unit_semantics"] == {
         "semantic_name": "a_share_round_lot",
         "qlib_parameter": "trade_unit",
@@ -567,6 +584,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "price_limit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "settlement_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "cash_constraint_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "liquidity_capacity_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "order_unit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "settlement_rule" in strict_contract["rdagent_must_not_redefine"]
     assert "same_day_sell_policy" in strict_contract["rdagent_must_not_redefine"]
@@ -606,6 +624,22 @@ def test_ashare_cash_constraint_contract_matches_exchange_source() -> None:
     assert "max_buy_amount = self._get_buy_amount_by_cash_limit(trade_price, cash, cost_ratio)" in exchange_source
     assert "TODO: make the trading shortable" in exchange_source
     assert "position.get_sellable_amount(order.stock_id)" in exchange_source
+
+
+def test_ashare_liquidity_capacity_contract_matches_exchange_source() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    capacity_semantics = contract["prompt_projection_payload"]["liquidity_capacity_semantics"]
+    exchange_source = EXCHANGE_PATH.read_text()
+
+    assert capacity_semantics["volume_field"] == "$volume"
+    assert capacity_semantics["capacity_parameter"] == "volume_threshold"
+    assert capacity_semantics["runtime_authority"] == "qlib.backtest.exchange.Exchange._clip_amount_by_volume"
+    assert capacity_semantics["threshold_parser_authority"] == "qlib.backtest.exchange.Exchange._get_vol_limit"
+    assert "self._clip_amount_by_volume(order, dealt_order_amount)" in exchange_source
+    assert "vol_limit_min = min(vol_limit_num)" in exchange_source
+    assert "order.deal_amount = max(min(vol_limit_min, orig_deal_amount), 0)" in exchange_source
+    assert "limit_value - dealt_order_amount[order.stock_id]" in exchange_source
+    assert "self.volume_threshold = volume_threshold" in exchange_source
 
 
 def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
@@ -651,6 +685,10 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert (
         round_tripped["prompt_projection_payload"]["cash_constraint_semantics"]["shorting_policy"]
         == "equity_short_selling_is_not_enabled"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["liquidity_capacity_semantics"]["capacity_parameter"]
+        == "volume_threshold"
     )
     assert round_tripped["prompt_projection_payload"]["order_unit_semantics"]["trade_unit"] == 100
     assert (
