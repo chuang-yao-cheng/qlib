@@ -253,6 +253,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "account_valuation_semantics",
         "trade_indicator_semantics",
         "executor_decision_semantics",
+        "strategy_order_semantics",
         "suspension_tradability_semantics",
         "execution_price_semantics",
         "price_adjustment_semantics",
@@ -483,6 +484,46 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "inner_result_rule": "nested_executor_collects_inner_execute_results_order_indicators_and_decision_time_windows",
         "rdagent_rule": "describe_only_do_not_redefine_executor_decision_lifecycle_or_nested_execution_order",
     }
+    strategy_order_semantics = {
+        "semantic_name": "a_share_strategy_signal_to_order_generation",
+        "base_strategy_authority": "qlib.strategy.base.BaseStrategy.generate_trade_decision",
+        "topk_strategy_authority": "qlib.contrib.strategy.signal_strategy.TopkDropoutStrategy.generate_trade_decision",
+        "weight_strategy_authority": "qlib.contrib.strategy.signal_strategy.WeightStrategyBase.generate_trade_decision",
+        "order_generator_authority": (
+            "qlib.contrib.strategy.order_generator.OrderGenerator.generate_order_list_from_target_weight_position"
+        ),
+        "interacting_order_generator_authority": (
+            "qlib.contrib.strategy.order_generator.OrderGenWInteract.generate_order_list_from_target_weight_position"
+        ),
+        "non_interacting_order_generator_authority": (
+            "qlib.contrib.strategy.order_generator.OrderGenWOInteract.generate_order_list_from_target_weight_position"
+        ),
+        "target_amount_order_authority": "qlib.backtest.exchange.Exchange.generate_order_for_target_amount_position",
+        "trade_decision_type": "qlib.backtest.decision.TradeDecisionWO",
+        "signal_authority": "qlib.backtest.signal.Signal.get_signal",
+        "template_strategy_binding": "qlib.contrib.strategy.TopkDropoutStrategy",
+        "prediction_window_rule": "strategy_reads_signal_from_previous_calendar_step_shift_one",
+        "dataframe_signal_rule": "topk_dropout_uses_first_signal_column_when_prediction_is_dataframe",
+        "missing_signal_rule": "missing_signal_returns_empty_TradeDecisionWO",
+        "topk_selection_rule": "topk_dropout_ranks_current_holdings_and_new_candidates_by_pred_score_descending",
+        "dropout_rule": "combined_last_and_today_scores_prevent_dropping_higher_score_stock_for_lower_score_buy",
+        "sell_order_rule": "sell_orders_are_generated_before_buy_orders_and_simulated_on_temp_position_for_cash",
+        "buy_budget_rule": "buy_budget_equals_temp_cash_times_risk_degree_divided_by_buy_count",
+        "hold_threshold_rule": "sell_requires_current_holding_count_at_least_hold_thresh",
+        "only_tradable_rule": "only_tradable_filters_selection_candidates_by_exchange_tradability",
+        "forbid_all_trade_at_limit_rule": (
+            "forbid_all_trade_at_limit_checks_any_limit_direction_else_directional_limit"
+        ),
+        "buy_round_lot_rule": "buy_amount_uses_deal_price_factor_and_exchange_round_amount_by_trade_unit",
+        "weight_strategy_rule": "weight_strategy_delegates_target_weight_to_order_generator_after_signal_lookup",
+        "interacting_generator_rule": "interacting_order_generator_uses_trade_date_tradability_and_prices",
+        "non_interacting_generator_rule": (
+            "non_interacting_order_generator_uses_pred_date_close_or_current_holding_price"
+        ),
+        "target_order_rule": "exchange_generates_target_amount_orders_with_deterministic_shuffled_stock_order",
+        "target_order_return_rule": "exchange_returns_sell_orders_before_buy_orders",
+        "rdagent_rule": "describe_only_do_not_redefine_strategy_signal_to_order_generation",
+    }
     semantic_fingerprint = _stable_semantic_fingerprint(
         {
             "schema_version": schema_version,
@@ -497,6 +538,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "account_valuation_semantics": account_valuation_semantics,
             "trade_indicator_semantics": trade_indicator_semantics,
             "executor_decision_semantics": executor_decision_semantics,
+            "strategy_order_semantics": strategy_order_semantics,
             "rdagent_must_not_redefine": rdagent_must_not_redefine,
         }
     )
@@ -529,6 +571,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_account_valuation_or_bar_end_refresh",
             "redefine_trade_execution_indicators_or_quality_metrics",
             "redefine_executor_decision_lifecycle_or_nested_execution_order",
+            "redefine_strategy_signal_to_order_generation",
             "redefine_settlement_or_sellable_position_state",
             "redefine_cash_settlement_or_sell_proceeds_availability",
             "redefine_cash_buying_power_or_shorting_policy",
@@ -634,6 +677,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "account_valuation_semantics": account_valuation_semantics,
         "trade_indicator_semantics": trade_indicator_semantics,
         "executor_decision_semantics": executor_decision_semantics,
+        "strategy_order_semantics": strategy_order_semantics,
         "suspension_tradability_semantics": {
             "semantic_name": "a_share_suspension_tradability",
             "suspension_indicator_field": "$close",
@@ -766,7 +810,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
                 "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, price-adjustment, "
-                "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+                "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
         },
@@ -788,6 +832,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "account_valuation_semantics",
                 "trade_indicator_semantics",
                 "executor_decision_semantics",
+                "strategy_order_semantics",
                 "rdagent_must_not_redefine",
             ],
             "rdagent_required_evidence_fields": [
@@ -824,6 +869,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "account_valuation_semantics",
                 "trade_indicator_semantics",
                 "executor_decision_semantics",
+                "strategy_order_semantics",
                 "suspension_tradability_semantics",
                 "execution_price_semantics",
                 "price_adjustment_semantics",
