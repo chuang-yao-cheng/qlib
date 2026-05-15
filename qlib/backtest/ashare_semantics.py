@@ -251,6 +251,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "price_limit_semantics",
         "settlement_semantics",
         "cash_constraint_semantics",
+        "liquidity_capacity_semantics",
         "trade_unit",
         "position_type",
         "settlement_rule",
@@ -291,6 +292,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "treat_board_fallback_as_primary_price_limit_authority",
             "redefine_settlement_or_sellable_position_state",
             "redefine_cash_buying_power_or_shorting_policy",
+            "redefine_liquidity_or_volume_capacity_policy",
             "redefine_cost_model_or_exchange_kwargs",
             "treat_research_prompt_projection_as_backtest_authority",
             "claim_a_share_alignment_without_qlib_contract_fingerprint",
@@ -460,6 +462,21 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "position_cash_authority": "qlib.backtest.position.Position.get_cash",
             "rdagent_rule": "describe_only_do_not_redefine_cash_or_shorting_policy",
         },
+        "liquidity_capacity_semantics": {
+            "semantic_name": "a_share_volume_capacity_limit",
+            "volume_field": "$volume",
+            "capacity_parameter": "volume_threshold",
+            "capacity_scope": "runtime_handoff_only_when_volume_threshold_is_configured",
+            "default_capacity_rule": "no_prompt_defined_capacity_limit_in_default_joinquant_ashare_contract",
+            "volume_limit_aggregation_rule": "multiple_volume_limits_are_aggregated_by_min",
+            "cumulative_limit_rule": "cum_volume_limits_subtract_dealt_order_amount",
+            "current_limit_rule": "current_volume_limits_use_current_quote_value",
+            "dealt_order_state": "dealt_order_amount",
+            "capacity_clip_rule": "order_deal_amount_is_clipped_to_nonnegative_configured_volume_capacity",
+            "runtime_authority": "qlib.backtest.exchange.Exchange._clip_amount_by_volume",
+            "threshold_parser_authority": "qlib.backtest.exchange.Exchange._get_vol_limit",
+            "rdagent_rule": "describe_only_do_not_redefine_liquidity_or_volume_capacity",
+        },
         "order_unit_semantics": {
             "semantic_name": "a_share_round_lot",
             "qlib_parameter": "trade_unit",
@@ -485,7 +502,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
                 "but it must not redefine trade unit, position, execution-price, price-adjustment, "
-                "suspension/tradability, price-limit, settlement, cash/shorting, or cost semantics."
+                "suspension/tradability, price-limit, settlement, cash/shorting, liquidity/capacity, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
         },
@@ -532,6 +549,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "price_limit_semantics",
                 "settlement_semantics",
                 "cash_constraint_semantics",
+                "liquidity_capacity_semantics",
                 "order_unit_semantics",
             ],
             "rdagent_prompt_forbidden_fields": [
