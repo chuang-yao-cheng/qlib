@@ -327,6 +327,9 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "analyst_consensus_expectation_factor",
             "unregistered_external_vendor_fields",
         ],
+        "turnover_input_boundary_rule": (
+            "turnover_is_not_a_default_factor_input_field_even_when_qlib_reports_portfolio_turnover"
+        ),
         "frequency_rule": "rdagent_factor_extraction_prompts_must_not_advertise_minute_or_intraday_data_as_default",
         "rdagent_prompt_paths": ["rdagent/scenarios/qlib/factor_experiment_loader/prompts.yaml"],
         "rdagent_rule": "describe_only_use_qlib_registered_daily_or_user_supplied_point_in_time_sources",
@@ -674,6 +677,9 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "recorder_metric_rule": "risk_metrics_are_logged_as_{freq}.{report_type}.{risk_metric}",
         "default_frequency_rule": "missing_risk_analysis_freq_uses_first_executor_portfolio_metric_frequency",
         "required_report_columns": ["return", "bench", "cost", "turnover"],
+        "turnover_report_metric_rule": (
+            "report_turnover_is_post_backtest_portfolio_metric_not_default_factor_input_field"
+        ),
         "report_type_fields": ["excess_return_without_cost", "excess_return_with_cost"],
         "excess_without_cost_rule": "report_return_minus_benchmark",
         "excess_with_cost_rule": "report_return_minus_benchmark_minus_cost",
