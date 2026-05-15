@@ -877,6 +877,9 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "prompt_wording_rule": (
             "describe_as_prediction_signal_score_for_LABEL0_not_realized_future_return_or_guaranteed_portfolio_return"
         ),
+        "rdagent_model_output_format_rule": (
+            "rdagent_model_experiment_output_format_must_describe_prediction_as_score_column_indexed_by_datetime_and_instrument_not_graph_node_output"
+        ),
         "rdagent_prompt_paths": [
             "rdagent/scenarios/qlib/experiment/prompts.yaml",
             "rdagent/scenarios/qlib/prompts.yaml",
@@ -2156,6 +2159,10 @@ def test_ashare_prediction_signal_contract_matches_runtime_sources() -> None:
     )
     assert signal_semantics["prompt_wording_rule"] == (
         "describe_as_prediction_signal_score_for_LABEL0_not_realized_future_return_or_guaranteed_portfolio_return"
+    )
+    assert (
+        signal_semantics["rdagent_model_output_format_rule"]
+        == "rdagent_model_experiment_output_format_must_describe_prediction_as_score_column_indexed_by_datetime_and_instrument_not_graph_node_output"
     )
     assert signal_semantics["rdagent_prompt_paths"] == [
         "rdagent/scenarios/qlib/experiment/prompts.yaml",

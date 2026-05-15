@@ -670,6 +670,9 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "missing_signal_rule": "missing_signal_returns_empty_TradeDecisionWO",
         "label_alignment_rule": "prediction_score_is_trained_against_qlib_owned_LABEL0_without_redefining_return_horizon",
         "prompt_wording_rule": "describe_as_prediction_signal_score_for_LABEL0_not_realized_future_return_or_guaranteed_portfolio_return",
+        "rdagent_model_output_format_rule": (
+            "rdagent_model_experiment_output_format_must_describe_prediction_as_score_column_indexed_by_datetime_and_instrument_not_graph_node_output"
+        ),
         "rdagent_prompt_paths": [
             "rdagent/scenarios/qlib/experiment/prompts.yaml",
             "rdagent/scenarios/qlib/prompts.yaml",
