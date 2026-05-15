@@ -19,6 +19,7 @@ EXECUTOR_PATH = REPO_ROOT / "qlib/backtest/executor.py"
 POSITION_PATH = REPO_ROOT / "qlib/backtest/position.py"
 REPORT_PATH = REPO_ROOT / "qlib/backtest/report.py"
 UTILS_PATH = REPO_ROOT / "qlib/backtest/utils.py"
+ALPHA_PATH = REPO_ROOT / "qlib/contrib/eva/alpha.py"
 EVALUATE_PATH = REPO_ROOT / "qlib/contrib/evaluate.py"
 ORDER_GENERATOR_PATH = REPO_ROOT / "qlib/contrib/strategy/order_generator.py"
 SIGNAL_STRATEGY_PATH = REPO_ROOT / "qlib/contrib/strategy/signal_strategy.py"
@@ -348,7 +349,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, portfolio risk analysis, benchmark return, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, signal IC, portfolio risk analysis, benchmark return, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -385,6 +386,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert "redefine_strategy_signal_to_order_generation" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    assert "redefine_signal_ic_or_rank_ic_metrics" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_portfolio_risk_analysis_metrics" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert (
         "redefine_benchmark_return_series_or_default_benchmark"
@@ -411,6 +413,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "trade_indicator_semantics" in contract["rdagent_must_not_redefine"]
     assert "executor_decision_semantics" in contract["rdagent_must_not_redefine"]
     assert "strategy_order_semantics" in contract["rdagent_must_not_redefine"]
+    assert "signal_ic_semantics" in contract["rdagent_must_not_redefine"]
     assert "portfolio_risk_semantics" in contract["rdagent_must_not_redefine"]
     assert "benchmark_return_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
@@ -460,6 +463,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "trade_indicator_semantics" in evidence["fingerprint_scope"]
     assert "executor_decision_semantics" in evidence["fingerprint_scope"]
     assert "strategy_order_semantics" in evidence["fingerprint_scope"]
+    assert "signal_ic_semantics" in evidence["fingerprint_scope"]
     assert "portfolio_risk_semantics" in evidence["fingerprint_scope"]
     assert "benchmark_return_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
@@ -736,6 +740,33 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "target_order_return_rule": "exchange_returns_sell_orders_before_buy_orders",
         "rdagent_rule": "describe_only_do_not_redefine_strategy_signal_to_order_generation",
     }
+    assert prompt_payload["signal_ic_semantics"] == {
+        "semantic_name": "a_share_signal_information_coefficient",
+        "signal_record_authority": "qlib.workflow.record_temp.SignalRecord",
+        "signal_analysis_authority": "qlib.workflow.record_temp.SigAnaRecord",
+        "high_frequency_signal_analysis_authority": "qlib.workflow.record_temp.HFSignalRecord",
+        "ic_calculation_authority": "qlib.contrib.eva.alpha.calc_ic",
+        "prediction_artifact": "pred.pkl",
+        "label_artifact": "label.pkl",
+        "ic_artifact": "ic.pkl",
+        "rank_ic_artifact": "ric.pkl",
+        "prediction_column_rule": "series_prediction_is_converted_to_score_dataframe_else_first_prediction_column_is_used",
+        "label_source_rule": "dataset_prepare_test_label_uses_DataHandlerLP_DK_R_when_supported_else_handler_default",
+        "missing_label_rule": "missing_or_empty_label_skips_signal_analysis_generation",
+        "label_column_rule": "SigAnaRecord_uses_configured_label_col_default_zero",
+        "groupby_level": "datetime",
+        "ic_rule": "IC_is_per_datetime_pearson_correlation_between_pred_and_label",
+        "rank_ic_rule": "Rank_IC_is_per_datetime_spearman_correlation_between_pred_and_label",
+        "dropna_rule": "calc_ic_preserves_nan_by_default_and_drops_nan_only_when_dropna_true",
+        "metric_fields": ["IC", "ICIR", "Rank IC", "Rank ICIR"],
+        "metric_aggregation_rule": "IC_and_Rank_IC_metrics_are_series_means",
+        "icir_rule": "ICIR_is_IC_mean_divided_by_IC_sample_std",
+        "rank_icir_rule": "Rank_ICIR_is_Rank_IC_mean_divided_by_Rank_IC_sample_std",
+        "recorder_metric_rule": "SigAnaRecord_and_HFSignalRecord_log_metrics_with_exact_metric_names",
+        "rdagent_consumed_metric_paths": ["IC", "ICIR", "Rank IC", "Rank ICIR"],
+        "portfolio_boundary_rule": "signal_ic_metrics_are_prediction_label_quality_metrics_not_portfolio_return_metrics",
+        "rdagent_rule": "describe_only_do_not_redefine_signal_ic_or_rank_ic_metrics",
+    }
     assert prompt_payload["portfolio_risk_semantics"] == {
         "semantic_name": "a_share_portfolio_risk_analysis",
         "record_authority": "qlib.workflow.record_temp.PortAnaRecord",
@@ -762,7 +793,6 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "information_ratio_rule": "information_ratio_equals_mean_over_std_times_square_root_annualization_scaler",
         "max_drawdown_rule": "sum_mode_max_drawdown_equals_min_of_cumulative_return_minus_running_cumulative_max",
         "rdagent_consumed_metric_paths": [
-            "IC",
             "1day.excess_return_without_cost.annualized_return",
             "1day.excess_return_without_cost.max_drawdown",
         ],
@@ -980,6 +1010,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "trade_indicator_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "executor_decision_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "strategy_order_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "signal_ic_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "portfolio_risk_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "benchmark_return_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert (
@@ -1585,6 +1616,85 @@ def test_ashare_strategy_order_contract_matches_runtime_sources() -> None:
     assert "return sell_order_list + buy_order_list" in exchange_source
 
 
+def test_ashare_signal_ic_contract_matches_runtime_sources() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    signal_ic = contract["prompt_projection_payload"]["signal_ic_semantics"]
+    portfolio_risk = contract["prompt_projection_payload"]["portfolio_risk_semantics"]
+    record_temp_source = RECORD_TEMP_PATH.read_text()
+    alpha_source = ALPHA_PATH.read_text()
+
+    assert signal_ic["semantic_name"] == "a_share_signal_information_coefficient"
+    assert signal_ic["signal_record_authority"] == "qlib.workflow.record_temp.SignalRecord"
+    assert signal_ic["signal_analysis_authority"] == "qlib.workflow.record_temp.SigAnaRecord"
+    assert signal_ic["high_frequency_signal_analysis_authority"] == "qlib.workflow.record_temp.HFSignalRecord"
+    assert signal_ic["ic_calculation_authority"] == "qlib.contrib.eva.alpha.calc_ic"
+    assert signal_ic["prediction_artifact"] == "pred.pkl"
+    assert signal_ic["label_artifact"] == "label.pkl"
+    assert signal_ic["ic_artifact"] == "ic.pkl"
+    assert signal_ic["rank_ic_artifact"] == "ric.pkl"
+    assert (
+        signal_ic["prediction_column_rule"]
+        == "series_prediction_is_converted_to_score_dataframe_else_first_prediction_column_is_used"
+    )
+    assert (
+        signal_ic["label_source_rule"]
+        == "dataset_prepare_test_label_uses_DataHandlerLP_DK_R_when_supported_else_handler_default"
+    )
+    assert signal_ic["missing_label_rule"] == "missing_or_empty_label_skips_signal_analysis_generation"
+    assert signal_ic["label_column_rule"] == "SigAnaRecord_uses_configured_label_col_default_zero"
+    assert signal_ic["groupby_level"] == "datetime"
+    assert signal_ic["ic_rule"] == "IC_is_per_datetime_pearson_correlation_between_pred_and_label"
+    assert signal_ic["rank_ic_rule"] == "Rank_IC_is_per_datetime_spearman_correlation_between_pred_and_label"
+    assert signal_ic["dropna_rule"] == "calc_ic_preserves_nan_by_default_and_drops_nan_only_when_dropna_true"
+    assert signal_ic["metric_fields"] == ["IC", "ICIR", "Rank IC", "Rank ICIR"]
+    assert signal_ic["metric_aggregation_rule"] == "IC_and_Rank_IC_metrics_are_series_means"
+    assert signal_ic["icir_rule"] == "ICIR_is_IC_mean_divided_by_IC_sample_std"
+    assert signal_ic["rank_icir_rule"] == "Rank_ICIR_is_Rank_IC_mean_divided_by_Rank_IC_sample_std"
+    assert signal_ic["recorder_metric_rule"] == "SigAnaRecord_and_HFSignalRecord_log_metrics_with_exact_metric_names"
+    assert signal_ic["rdagent_consumed_metric_paths"] == ["IC", "ICIR", "Rank IC", "Rank ICIR"]
+    assert (
+        signal_ic["portfolio_boundary_rule"]
+        == "signal_ic_metrics_are_prediction_label_quality_metrics_not_portfolio_return_metrics"
+    )
+    assert signal_ic["rdagent_rule"] == "describe_only_do_not_redefine_signal_ic_or_rank_ic_metrics"
+    assert "IC" not in portfolio_risk["rdagent_consumed_metric_paths"]
+
+    assert "class SignalRecord(RecordTemp):" in record_temp_source
+    assert "raw_label = dataset.prepare(**params)" in record_temp_source
+    assert 'del params["data_key"]' in record_temp_source
+    assert "pred = self.model.predict(self.dataset)" in record_temp_source
+    assert 'pred = pred.to_frame("score")' in record_temp_source
+    assert 'self.save(**{"pred.pkl": pred})' in record_temp_source
+    assert 'self.save(**{"label.pkl": raw_label})' in record_temp_source
+    assert "class SigAnaRecord(ACRecordTemp):" in record_temp_source
+    assert 'artifact_path = "sig_analysis"' in record_temp_source
+    assert "depend_cls = SignalRecord" in record_temp_source
+    assert "self.label_col = label_col" in record_temp_source
+    assert 'pred = self.load("pred.pkl")' in record_temp_source
+    assert 'label = self.load("label.pkl")' in record_temp_source
+    assert "if label is None or not isinstance(label, pd.DataFrame) or label.empty:" in record_temp_source
+    assert "ic, ric = calc_ic(pred.iloc[:, 0], label.iloc[:, self.label_col])" in record_temp_source
+    assert '"IC": ic.mean()' in record_temp_source
+    assert '"ICIR": ic.mean() / ic.std()' in record_temp_source
+    assert '"Rank IC": ric.mean()' in record_temp_source
+    assert '"Rank ICIR": ric.mean() / ric.std()' in record_temp_source
+    assert 'objects = {"ic.pkl": ic, "ric.pkl": ric}' in record_temp_source
+    assert "self.recorder.log_metrics(**metrics)" in record_temp_source
+    assert "class HFSignalRecord(SignalRecord):" in record_temp_source
+    assert 'artifact_path = "hg_sig_analysis"' in record_temp_source
+    assert 'raw_label = self.load("label.pkl")' in record_temp_source
+    assert "ic, ric = calc_ic(pred.iloc[:, 0], raw_label.iloc[:, 0])" in record_temp_source
+
+    assert 'def calc_ic(pred: pd.Series, label: pd.Series, date_col="datetime", dropna=False)' in alpha_source
+    assert 'df = pd.DataFrame({"pred": pred, "label": label})' in alpha_source
+    assert 'ic = df.groupby(date_col, group_keys=False).apply(lambda df: df["pred"].corr(df["label"]))' in (
+        alpha_source
+    )
+    assert 'method="spearman"' in alpha_source
+    assert "return ic.dropna(), ric.dropna()" in alpha_source
+    assert "return ic, ric" in alpha_source
+
+
 def test_ashare_portfolio_risk_contract_matches_runtime_sources() -> None:
     contract = ashare_semantics.rdagent_ashare_semantic_contract()
     portfolio_risk = contract["prompt_projection_payload"]["portfolio_risk_semantics"]
@@ -1645,7 +1755,6 @@ def test_ashare_portfolio_risk_contract_matches_runtime_sources() -> None:
         "sum_mode_max_drawdown_equals_min_of_cumulative_return_minus_running_cumulative_max"
     )
     assert portfolio_risk["rdagent_consumed_metric_paths"] == [
-        "IC",
         "1day.excess_return_without_cost.annualized_return",
         "1day.excess_return_without_cost.max_drawdown",
     ]
@@ -1931,6 +2040,16 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
         round_tripped["prompt_projection_payload"]["strategy_order_semantics"]["topk_strategy_authority"]
         == "qlib.contrib.strategy.signal_strategy.TopkDropoutStrategy.generate_trade_decision"
     )
+    assert (
+        round_tripped["prompt_projection_payload"]["signal_ic_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_signal_ic_or_rank_ic_metrics"
+    )
+    assert round_tripped["prompt_projection_payload"]["signal_ic_semantics"]["metric_fields"] == [
+        "IC",
+        "ICIR",
+        "Rank IC",
+        "Rank ICIR",
+    ]
     assert (
         round_tripped["prompt_projection_payload"]["portfolio_risk_semantics"]["rdagent_rule"]
         == "describe_only_do_not_redefine_portfolio_risk_analysis_metrics"
