@@ -894,6 +894,9 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "recorder_metric_rule": "risk_metrics_are_logged_as_{freq}.{report_type}.{risk_metric}",
         "default_frequency_rule": "missing_risk_analysis_freq_uses_first_executor_portfolio_metric_frequency",
         "required_report_columns": ["return", "bench", "cost", "turnover"],
+        "turnover_report_metric_rule": (
+            "report_turnover_is_post_backtest_portfolio_metric_not_default_factor_input_field"
+        ),
         "report_type_fields": ["excess_return_without_cost", "excess_return_with_cost"],
         "excess_without_cost_rule": "report_return_minus_benchmark",
         "excess_with_cost_rule": "report_return_minus_benchmark_minus_cost",
@@ -2217,6 +2220,10 @@ def test_ashare_portfolio_risk_contract_matches_runtime_sources() -> None:
         "cost",
         "turnover",
     ]
+    assert (
+        portfolio_risk["turnover_report_metric_rule"]
+        == "report_turnover_is_post_backtest_portfolio_metric_not_default_factor_input_field"
+    )
     assert portfolio_risk["report_type_fields"] == [
         "excess_return_without_cost",
         "excess_return_with_cost",
@@ -2610,6 +2617,10 @@ def test_ashare_research_data_source_contract_bounds_rd_agent_factor_prompts() -
         "analyst_consensus_expectation_factor",
         "unregistered_external_vendor_fields",
     ]
+    assert (
+        source_boundary["turnover_input_boundary_rule"]
+        == "turnover_is_not_a_default_factor_input_field_even_when_qlib_reports_portfolio_turnover"
+    )
     assert "turnover" not in source_boundary["primary_price_volume_fields"]
     assert (
         source_boundary["frequency_rule"]
