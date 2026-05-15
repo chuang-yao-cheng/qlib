@@ -6,9 +6,12 @@ on:
     paths:
       - "qlib/backtest/ashare_semantics.py"
       - "qlib/backtest/account.py"
+      - "qlib/backtest/decision.py"
       - "qlib/backtest/exchange.py"
+      - "qlib/backtest/executor.py"
       - "qlib/backtest/position.py"
       - "qlib/backtest/report.py"
+      - "qlib/backtest/utils.py"
       - "qlib/data/data.py"
       - "tests/backtest/test_ashare_semantics.py"
       - "tests/backtest/test_ashare_t1_position.py"
@@ -18,9 +21,12 @@ on:
     paths:
       - "qlib/backtest/ashare_semantics.py"
       - "qlib/backtest/account.py"
+      - "qlib/backtest/decision.py"
       - "qlib/backtest/exchange.py"
+      - "qlib/backtest/executor.py"
       - "qlib/backtest/position.py"
       - "qlib/backtest/report.py"
+      - "qlib/backtest/utils.py"
       - "qlib/data/data.py"
       - "tests/backtest/test_ashare_semantics.py"
       - "tests/backtest/test_ashare_t1_position.py"
@@ -83,9 +89,12 @@ jobs:
           python -m py_compile \
             qlib/backtest/ashare_semantics.py \
             qlib/backtest/account.py \
+            qlib/backtest/decision.py \
             qlib/backtest/exchange.py \
+            qlib/backtest/executor.py \
             qlib/backtest/position.py \
             qlib/backtest/report.py \
+            qlib/backtest/utils.py \
             qlib/data/data.py \
             tests/backtest/test_ashare_semantics.py \
             tests/backtest/test_ashare_t1_position.py

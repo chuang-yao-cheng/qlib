@@ -12,9 +12,12 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = REPO_ROOT / "qlib/backtest/ashare_semantics.py"
 ACCOUNT_PATH = REPO_ROOT / "qlib/backtest/account.py"
+DECISION_PATH = REPO_ROOT / "qlib/backtest/decision.py"
 EXCHANGE_PATH = REPO_ROOT / "qlib/backtest/exchange.py"
+EXECUTOR_PATH = REPO_ROOT / "qlib/backtest/executor.py"
 POSITION_PATH = REPO_ROOT / "qlib/backtest/position.py"
 REPORT_PATH = REPO_ROOT / "qlib/backtest/report.py"
+UTILS_PATH = REPO_ROOT / "qlib/backtest/utils.py"
 DATA_PATH = REPO_ROOT / "qlib/data/data.py"
 
 spec = importlib.util.spec_from_file_location("ashare_semantics_under_test", MODULE_PATH)
@@ -339,7 +342,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -372,6 +375,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
+        "redefine_executor_decision_lifecycle_or_nested_execution_order"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
+    assert (
         "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
@@ -390,6 +397,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "account_update_semantics" in contract["rdagent_must_not_redefine"]
     assert "account_valuation_semantics" in contract["rdagent_must_not_redefine"]
     assert "trade_indicator_semantics" in contract["rdagent_must_not_redefine"]
+    assert "executor_decision_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
@@ -435,6 +443,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "account_update_semantics" in evidence["fingerprint_scope"]
     assert "account_valuation_semantics" in evidence["fingerprint_scope"]
     assert "trade_indicator_semantics" in evidence["fingerprint_scope"]
+    assert "executor_decision_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
     assert (
         "runtime_surfaces.backtest_kwargs" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
@@ -636,6 +645,39 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "portfolio_boundary_rule": "trade_indicators_are_execution_quality_metrics_not_portfolio_return_metrics",
         "rdagent_rule": "describe_only_do_not_redefine_trade_execution_indicators_or_quality_metrics",
     }
+    assert prompt_payload["executor_decision_semantics"] == {
+        "semantic_name": "a_share_executor_trade_decision_lifecycle",
+        "base_executor_authority": "qlib.backtest.executor.BaseExecutor.collect_data",
+        "simulator_executor_authority": "qlib.backtest.executor.SimulatorExecutor._collect_data",
+        "nested_executor_authority": "qlib.backtest.executor.NestedExecutor._collect_data",
+        "decision_authority": "qlib.backtest.decision.BaseTradeDecision",
+        "decision_update_authority": "qlib.backtest.decision.BaseTradeDecision.update",
+        "range_limit_authority": "qlib.backtest.decision.BaseTradeDecision.get_range_limit",
+        "data_calendar_range_authority": "qlib.backtest.decision.BaseTradeDecision.get_data_cal_range_limit",
+        "inner_decision_modification_authority": "qlib.backtest.decision.BaseTradeDecision.mod_inner_decision",
+        "calendar_authority": "qlib.backtest.utils.TradeCalendarManager",
+        "level_infra_authority": "qlib.backtest.utils.LevelInfrastructure",
+        "atomicity_rule": "atomic_executor_rejects_trade_decision_range_limit",
+        "settle_sequence_rule": "settle_start_runs_before_collection_and_settle_commit_after_bar_end_when_enabled",
+        "bar_end_sequence_rule": "executor_updates_account_bar_end_before_trade_calendar_step",
+        "track_data_rule": "track_data_yields_outer_trade_decision_for_training_data_only",
+        "simulator_order_rule": "simulator_executor_retrieves_order_decisions_and_deals_each_order_through_exchange",
+        "simulator_trade_type_rule": (
+            "serial_preserves_order_sequence_parallel_sorts_buys_before_sells_to_surface_cash_conflicts"
+        ),
+        "daily_dealt_amount_rule": "simulator_resets_dealt_order_amount_when_trade_day_advances",
+        "nested_init_rule": (
+            "nested_executor_resets_inner_executor_to_outer_step_window_and_passes_outer_decision_to_inner_strategy"
+        ),
+        "nested_update_rule": "nested_executor_updates_outer_decision_with_inner_calendar_before_range_limit_alignment",
+        "nested_range_rule": "nested_executor_skips_inner_steps_outside_range_limit_when_align_range_limit_is_enabled",
+        "inner_decision_rule": (
+            "outer_trade_decision_may_propagate_trade_range_into_inner_trade_decision_only_when_inner_range_absent"
+        ),
+        "empty_decision_rule": "empty_decision_can_skip_inner_loop_when_skip_empty_decision_is_enabled",
+        "inner_result_rule": "nested_executor_collects_inner_execute_results_order_indicators_and_decision_time_windows",
+        "rdagent_rule": "describe_only_do_not_redefine_executor_decision_lifecycle_or_nested_execution_order",
+    }
     assert prompt_payload["suspension_tradability_semantics"] == {
         "semantic_name": "a_share_suspension_tradability",
         "suspension_indicator_field": "$close",
@@ -818,6 +860,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "account_update_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "account_valuation_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "trade_indicator_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "executor_decision_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert (
         "suspension_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
@@ -1202,6 +1245,106 @@ def test_ashare_trade_indicator_contract_matches_runtime_sources() -> None:
     assert "self.trade_indicator_his[trade_start_time] = self.get_trade_indicator()" in report_source
 
 
+def test_ashare_executor_decision_contract_matches_runtime_sources() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    executor_decision = contract["prompt_projection_payload"]["executor_decision_semantics"]
+    executor_source = EXECUTOR_PATH.read_text()
+    decision_source = DECISION_PATH.read_text()
+    utils_source = UTILS_PATH.read_text()
+
+    assert executor_decision["semantic_name"] == "a_share_executor_trade_decision_lifecycle"
+    assert executor_decision["base_executor_authority"] == "qlib.backtest.executor.BaseExecutor.collect_data"
+    assert executor_decision["simulator_executor_authority"] == "qlib.backtest.executor.SimulatorExecutor._collect_data"
+    assert executor_decision["nested_executor_authority"] == "qlib.backtest.executor.NestedExecutor._collect_data"
+    assert executor_decision["decision_authority"] == "qlib.backtest.decision.BaseTradeDecision"
+    assert executor_decision["decision_update_authority"] == "qlib.backtest.decision.BaseTradeDecision.update"
+    assert executor_decision["range_limit_authority"] == "qlib.backtest.decision.BaseTradeDecision.get_range_limit"
+    assert (
+        executor_decision["data_calendar_range_authority"]
+        == "qlib.backtest.decision.BaseTradeDecision.get_data_cal_range_limit"
+    )
+    assert (
+        executor_decision["inner_decision_modification_authority"]
+        == "qlib.backtest.decision.BaseTradeDecision.mod_inner_decision"
+    )
+    assert executor_decision["calendar_authority"] == "qlib.backtest.utils.TradeCalendarManager"
+    assert executor_decision["level_infra_authority"] == "qlib.backtest.utils.LevelInfrastructure"
+    assert executor_decision["atomicity_rule"] == "atomic_executor_rejects_trade_decision_range_limit"
+    assert (
+        executor_decision["settle_sequence_rule"]
+        == "settle_start_runs_before_collection_and_settle_commit_after_bar_end_when_enabled"
+    )
+    assert executor_decision["bar_end_sequence_rule"] == "executor_updates_account_bar_end_before_trade_calendar_step"
+    assert executor_decision["track_data_rule"] == "track_data_yields_outer_trade_decision_for_training_data_only"
+    assert (
+        executor_decision["simulator_order_rule"]
+        == "simulator_executor_retrieves_order_decisions_and_deals_each_order_through_exchange"
+    )
+    assert executor_decision["simulator_trade_type_rule"] == (
+        "serial_preserves_order_sequence_parallel_sorts_buys_before_sells_to_surface_cash_conflicts"
+    )
+    assert executor_decision["daily_dealt_amount_rule"] == "simulator_resets_dealt_order_amount_when_trade_day_advances"
+    assert executor_decision["nested_init_rule"] == (
+        "nested_executor_resets_inner_executor_to_outer_step_window_and_passes_outer_decision_to_inner_strategy"
+    )
+    assert (
+        executor_decision["nested_update_rule"]
+        == "nested_executor_updates_outer_decision_with_inner_calendar_before_range_limit_alignment"
+    )
+    assert (
+        executor_decision["nested_range_rule"]
+        == "nested_executor_skips_inner_steps_outside_range_limit_when_align_range_limit_is_enabled"
+    )
+    assert executor_decision["inner_decision_rule"] == (
+        "outer_trade_decision_may_propagate_trade_range_into_inner_trade_decision_only_when_inner_range_absent"
+    )
+    assert (
+        executor_decision["empty_decision_rule"]
+        == "empty_decision_can_skip_inner_loop_when_skip_empty_decision_is_enabled"
+    )
+    assert executor_decision["inner_result_rule"] == (
+        "nested_executor_collects_inner_execute_results_order_indicators_and_decision_time_windows"
+    )
+    assert (
+        executor_decision["rdagent_rule"]
+        == "describe_only_do_not_redefine_executor_decision_lifecycle_or_nested_execution_order"
+    )
+    assert "def collect_data(" in executor_source
+    assert "if self.track_data:\n            yield trade_decision" in executor_source
+    assert "atomic = not issubclass(self.__class__, NestedExecutor)" in executor_source
+    assert 'raise ValueError("atomic executor doesn\'t support specify `range_limit`")' in executor_source
+    assert "self.trade_account.current_position.settle_start(self._settle_type)" in executor_source
+    assert "self.trade_account.update_bar_end(" in executor_source
+    assert "self.trade_calendar.step()" in executor_source
+    assert "self.trade_account.current_position.settle_commit()" in executor_source
+    assert "def _get_order_iterator(" in executor_source
+    assert "order_it = sorted(orders, key=lambda order: -order.direction)" in executor_source
+    assert "self.dealt_order_amount = defaultdict(float)" in executor_source
+    assert "self.trade_exchange.deal_order(" in executor_source
+    assert "def _init_sub_trading(self, trade_decision: BaseTradeDecision) -> None:" in executor_source
+    assert "self.inner_executor.reset(start_time=trade_start_time, end_time=trade_end_time)" in executor_source
+    assert "self.inner_strategy.reset(level_infra=sub_level_infra, outer_trade_decision=trade_decision)" in (
+        executor_source
+    )
+    assert "trade_decision = self._update_trade_decision(trade_decision)" in executor_source
+    assert "if trade_decision.empty() and self._skip_empty_decision:" in executor_source
+    assert "start_idx, end_idx = get_start_end_idx(sub_cal, trade_decision)" in executor_source
+    assert "if not self._align_range_limit or start_idx <= sub_cal.get_trade_step() <= end_idx:" in executor_source
+    assert "trade_decision.mod_inner_decision(_inner_trade_decision)" in executor_source
+    assert "decision_list.append((_inner_trade_decision, *sub_cal.get_step_time()))" in executor_source
+    assert "inner_order_indicators.append(" in executor_source
+    assert "def update(self, trade_calendar: TradeCalendarManager)" in decision_source
+    assert "self.total_step = trade_calendar.get_trade_len()" in decision_source
+    assert "return self.strategy.update_trade_decision(self, trade_calendar)" in decision_source
+    assert "def get_range_limit(self, **kwargs: Any)" in decision_source
+    assert 'return kwargs["default_value"]' in decision_source
+    assert "def get_data_cal_range_limit(" in decision_source
+    assert "if inner_trade_decision.trade_range is None:" in decision_source
+    assert "inner_trade_decision.trade_range = self.trade_range" in decision_source
+    assert "class TradeCalendarManager:" in utils_source
+    assert 'def get_data_cal_range(self, rtype: str = "full")' in utils_source
+
+
 def test_ashare_cash_settlement_contract_matches_position_source() -> None:
     contract = ashare_semantics.rdagent_ashare_semantic_contract()
     cash_settlement = contract["prompt_projection_payload"]["cash_settlement_semantics"]
@@ -1364,6 +1507,14 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
         "value",
         "count",
     ]
+    assert (
+        round_tripped["prompt_projection_payload"]["executor_decision_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_executor_decision_lifecycle_or_nested_execution_order"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["executor_decision_semantics"]["base_executor_authority"]
+        == "qlib.backtest.executor.BaseExecutor.collect_data"
+    )
     assert (
         round_tripped["prompt_projection_payload"]["suspension_tradability_semantics"]["rdagent_rule"]
         == "describe_only_do_not_redefine_suspension_or_tradability"

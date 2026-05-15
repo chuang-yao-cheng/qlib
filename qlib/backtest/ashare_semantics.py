@@ -252,6 +252,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "account_update_semantics",
         "account_valuation_semantics",
         "trade_indicator_semantics",
+        "executor_decision_semantics",
         "suspension_tradability_semantics",
         "execution_price_semantics",
         "price_adjustment_semantics",
@@ -449,6 +450,39 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "portfolio_boundary_rule": "trade_indicators_are_execution_quality_metrics_not_portfolio_return_metrics",
         "rdagent_rule": "describe_only_do_not_redefine_trade_execution_indicators_or_quality_metrics",
     }
+    executor_decision_semantics = {
+        "semantic_name": "a_share_executor_trade_decision_lifecycle",
+        "base_executor_authority": "qlib.backtest.executor.BaseExecutor.collect_data",
+        "simulator_executor_authority": "qlib.backtest.executor.SimulatorExecutor._collect_data",
+        "nested_executor_authority": "qlib.backtest.executor.NestedExecutor._collect_data",
+        "decision_authority": "qlib.backtest.decision.BaseTradeDecision",
+        "decision_update_authority": "qlib.backtest.decision.BaseTradeDecision.update",
+        "range_limit_authority": "qlib.backtest.decision.BaseTradeDecision.get_range_limit",
+        "data_calendar_range_authority": "qlib.backtest.decision.BaseTradeDecision.get_data_cal_range_limit",
+        "inner_decision_modification_authority": "qlib.backtest.decision.BaseTradeDecision.mod_inner_decision",
+        "calendar_authority": "qlib.backtest.utils.TradeCalendarManager",
+        "level_infra_authority": "qlib.backtest.utils.LevelInfrastructure",
+        "atomicity_rule": "atomic_executor_rejects_trade_decision_range_limit",
+        "settle_sequence_rule": "settle_start_runs_before_collection_and_settle_commit_after_bar_end_when_enabled",
+        "bar_end_sequence_rule": "executor_updates_account_bar_end_before_trade_calendar_step",
+        "track_data_rule": "track_data_yields_outer_trade_decision_for_training_data_only",
+        "simulator_order_rule": "simulator_executor_retrieves_order_decisions_and_deals_each_order_through_exchange",
+        "simulator_trade_type_rule": (
+            "serial_preserves_order_sequence_parallel_sorts_buys_before_sells_to_surface_cash_conflicts"
+        ),
+        "daily_dealt_amount_rule": "simulator_resets_dealt_order_amount_when_trade_day_advances",
+        "nested_init_rule": (
+            "nested_executor_resets_inner_executor_to_outer_step_window_and_passes_outer_decision_to_inner_strategy"
+        ),
+        "nested_update_rule": "nested_executor_updates_outer_decision_with_inner_calendar_before_range_limit_alignment",
+        "nested_range_rule": "nested_executor_skips_inner_steps_outside_range_limit_when_align_range_limit_is_enabled",
+        "inner_decision_rule": (
+            "outer_trade_decision_may_propagate_trade_range_into_inner_trade_decision_only_when_inner_range_absent"
+        ),
+        "empty_decision_rule": "empty_decision_can_skip_inner_loop_when_skip_empty_decision_is_enabled",
+        "inner_result_rule": "nested_executor_collects_inner_execute_results_order_indicators_and_decision_time_windows",
+        "rdagent_rule": "describe_only_do_not_redefine_executor_decision_lifecycle_or_nested_execution_order",
+    }
     semantic_fingerprint = _stable_semantic_fingerprint(
         {
             "schema_version": schema_version,
@@ -462,6 +496,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "account_update_semantics": account_update_semantics,
             "account_valuation_semantics": account_valuation_semantics,
             "trade_indicator_semantics": trade_indicator_semantics,
+            "executor_decision_semantics": executor_decision_semantics,
             "rdagent_must_not_redefine": rdagent_must_not_redefine,
         }
     )
@@ -493,6 +528,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_account_position_or_cash_mutation_order",
             "redefine_account_valuation_or_bar_end_refresh",
             "redefine_trade_execution_indicators_or_quality_metrics",
+            "redefine_executor_decision_lifecycle_or_nested_execution_order",
             "redefine_settlement_or_sellable_position_state",
             "redefine_cash_settlement_or_sell_proceeds_availability",
             "redefine_cash_buying_power_or_shorting_policy",
@@ -597,6 +633,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "account_update_semantics": account_update_semantics,
         "account_valuation_semantics": account_valuation_semantics,
         "trade_indicator_semantics": trade_indicator_semantics,
+        "executor_decision_semantics": executor_decision_semantics,
         "suspension_tradability_semantics": {
             "semantic_name": "a_share_suspension_tradability",
             "suspension_indicator_field": "$close",
@@ -729,7 +766,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
                 "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, price-adjustment, "
-                "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+                "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
         },
@@ -750,6 +787,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "account_update_semantics",
                 "account_valuation_semantics",
                 "trade_indicator_semantics",
+                "executor_decision_semantics",
                 "rdagent_must_not_redefine",
             ],
             "rdagent_required_evidence_fields": [
@@ -785,6 +823,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "account_update_semantics",
                 "account_valuation_semantics",
                 "trade_indicator_semantics",
+                "executor_decision_semantics",
                 "suspension_tradability_semantics",
                 "execution_price_semantics",
                 "price_adjustment_semantics",
