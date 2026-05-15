@@ -427,6 +427,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
+        "redefine_research_persona_or_replace_a_share_market_context"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
+    assert (
         "redefine_trade_window_tradability_or_quote_window_aggregation"
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
@@ -461,6 +465,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "universe_benchmark_binding_semantics" in contract["rdagent_must_not_redefine"]
     assert "runtime_handoff_template_binding_semantics" in contract["rdagent_must_not_redefine"]
     assert "research_data_source_semantics" in contract["rdagent_must_not_redefine"]
+    assert "research_persona_semantics" in contract["rdagent_must_not_redefine"]
     assert "trade_window_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
@@ -519,6 +524,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "universe_benchmark_binding_semantics" in evidence["fingerprint_scope"]
     assert "runtime_handoff_template_binding_semantics" in evidence["fingerprint_scope"]
     assert "research_data_source_semantics" in evidence["fingerprint_scope"]
+    assert "research_persona_semantics" in evidence["fingerprint_scope"]
     assert "trade_window_tradability_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
     assert (
@@ -1409,6 +1415,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert (
         "research_data_source_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
+    assert "research_persona_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert (
         "trade_window_tradability_semantics"
         in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
@@ -2952,6 +2959,27 @@ def test_ashare_research_data_source_contract_bounds_rd_agent_factor_prompts() -
     )
     assert '"feature": ["OPEN", "HIGH", "LOW", "VWAP"]' in handler_source
     assert 'return ["Ref($close, -2)/Ref($close, -1) - 1"], ["LABEL0"]' in handler_source
+
+
+def test_ashare_research_persona_contract_bounds_rd_agent_prompt_context() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    persona = contract["prompt_projection_payload"]["research_persona_semantics"]
+
+    assert persona == {
+        "semantic_name": "a_share_research_persona_context",
+        "market_context": "china_a_share",
+        "region_context": "cn",
+        "persona_rule": (
+            "rdagent_a_share_prompts_must_use_china_a_share_market_context_not_generic_wall_street_persona"
+        ),
+        "required_prompt_context": "China A-share quantitative research",
+        "forbidden_prompt_personas": ["Wall Street hedge fund", "Wall Street"],
+        "rdagent_prompt_paths": [
+            "rdagent/scenarios/qlib/experiment/prompts.yaml",
+            "rdagent/scenarios/qlib/prompts.yaml",
+        ],
+        "rdagent_rule": "describe_a_share_research_context_without_cross_market_persona_aliases",
+    }
 
 
 def test_ashare_cash_settlement_contract_matches_position_source() -> None:

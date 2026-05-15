@@ -264,6 +264,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "universe_benchmark_binding_semantics",
         "runtime_handoff_template_binding_semantics",
         "research_data_source_semantics",
+        "research_persona_semantics",
         "trade_window_tradability_semantics",
         "suspension_tradability_semantics",
         "execution_price_semantics",
@@ -343,6 +344,19 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "rdagent/components/coder/factor_coder/prompts.yaml",
         ],
         "rdagent_rule": "describe_only_use_qlib_registered_daily_or_user_supplied_point_in_time_sources",
+    }
+    research_persona_semantics = {
+        "semantic_name": "a_share_research_persona_context",
+        "market_context": "china_a_share",
+        "region_context": "cn",
+        "persona_rule": "rdagent_a_share_prompts_must_use_china_a_share_market_context_not_generic_wall_street_persona",
+        "required_prompt_context": "China A-share quantitative research",
+        "forbidden_prompt_personas": ["Wall Street hedge fund", "Wall Street"],
+        "rdagent_prompt_paths": [
+            "rdagent/scenarios/qlib/experiment/prompts.yaml",
+            "rdagent/scenarios/qlib/prompts.yaml",
+        ],
+        "rdagent_rule": "describe_a_share_research_context_without_cross_market_persona_aliases",
     }
     cash_settlement_semantics = {
         "semantic_name": "a_share_sell_proceeds_cash_settlement",
@@ -1028,6 +1042,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "universe_benchmark_binding_semantics": universe_benchmark_binding_semantics,
             "runtime_handoff_template_binding_semantics": runtime_handoff_template_binding_semantics,
             "research_data_source_semantics": research_data_source_semantics,
+            "research_persona_semantics": research_persona_semantics,
             "trade_window_tradability_semantics": trade_window_tradability_semantics,
             "rdagent_must_not_redefine": rdagent_must_not_redefine,
         }
@@ -1072,6 +1087,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_universe_benchmark_template_binding_or_cross_alias_market_and_benchmark",
             "redefine_runtime_handoff_or_template_execution_kwargs",
             "redefine_research_data_source_availability_or_imply_unregistered_sources",
+            "redefine_research_persona_or_replace_a_share_market_context",
             "redefine_trade_window_tradability_or_quote_window_aggregation",
             "redefine_settlement_or_sellable_position_state",
             "redefine_cash_settlement_or_sell_proceeds_availability",
@@ -1204,6 +1220,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "rdagent_rule": runtime_handoff_template_binding_semantics["rdagent_rule"],
         },
         "research_data_source_semantics": research_data_source_semantics,
+        "research_persona_semantics": research_persona_semantics,
         "trade_window_tradability_semantics": trade_window_tradability_semantics,
         "suspension_tradability_semantics": {
             "semantic_name": "a_share_suspension_tradability",
@@ -1370,6 +1387,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "universe_benchmark_binding_semantics",
                 "runtime_handoff_template_binding_semantics",
                 "research_data_source_semantics",
+                "research_persona_semantics",
                 "trade_window_tradability_semantics",
                 "rdagent_must_not_redefine",
             ],
@@ -1418,6 +1436,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "universe_benchmark_binding_semantics",
                 "runtime_handoff_template_binding_semantics",
                 "research_data_source_semantics",
+                "research_persona_semantics",
                 "trade_window_tradability_semantics",
                 "suspension_tradability_semantics",
                 "execution_price_semantics",
