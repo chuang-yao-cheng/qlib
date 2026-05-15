@@ -907,6 +907,17 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "rdagent_model_benchmark_reference_code_boundary_rule": (
             "rdagent_qlib_model_benchmark_reference_code_must_execute_tabular_or_timeseries_prediction_score_tensors_without_torch_geometric_or_graph_inputs"
         ),
+        "rdagent_model_execution_template_boundary_rule": (
+            "rdagent_qlib_model_execution_templates_must_execute_tabular_or_timeseries_prediction_score_tensors_and_fail_closed_without_torch_geometric_graph_inputs"
+        ),
+        "rdagent_model_one_shot_prompt_boundary_rule": (
+            "rdagent_qlib_model_one_shot_prompts_must_request_tabular_or_timeseries_prediction_score_models_not_torch_geometric_graph_models"
+        ),
+        "rdagent_model_execution_surface_paths": [
+            "rdagent/components/coder/model_coder/model_execute_template_v1.txt",
+            "rdagent/components/coder/model_coder/one_shot/prompt.yaml",
+            "rdagent/components/coder/model_coder/gt_code.py",
+        ],
         "rdagent_supported_model_types": ["Tabular", "TimeSeries"],
         "rdagent_forbidden_model_types": ["Graph", "XGBoost"],
         "rdagent_implementation_prompt_paths": [
@@ -2232,6 +2243,19 @@ def test_ashare_prediction_signal_contract_matches_runtime_sources() -> None:
         signal_semantics["rdagent_model_benchmark_reference_code_boundary_rule"]
         == "rdagent_qlib_model_benchmark_reference_code_must_execute_tabular_or_timeseries_prediction_score_tensors_without_torch_geometric_or_graph_inputs"
     )
+    assert (
+        signal_semantics["rdagent_model_execution_template_boundary_rule"]
+        == "rdagent_qlib_model_execution_templates_must_execute_tabular_or_timeseries_prediction_score_tensors_and_fail_closed_without_torch_geometric_graph_inputs"
+    )
+    assert (
+        signal_semantics["rdagent_model_one_shot_prompt_boundary_rule"]
+        == "rdagent_qlib_model_one_shot_prompts_must_request_tabular_or_timeseries_prediction_score_models_not_torch_geometric_graph_models"
+    )
+    assert signal_semantics["rdagent_model_execution_surface_paths"] == [
+        "rdagent/components/coder/model_coder/model_execute_template_v1.txt",
+        "rdagent/components/coder/model_coder/one_shot/prompt.yaml",
+        "rdagent/components/coder/model_coder/gt_code.py",
+    ]
     assert signal_semantics["rdagent_supported_model_types"] == ["Tabular", "TimeSeries"]
     assert signal_semantics["rdagent_forbidden_model_types"] == ["Graph", "XGBoost"]
     assert signal_semantics["rdagent_implementation_prompt_paths"] == [
@@ -2265,6 +2289,19 @@ def test_ashare_prediction_signal_contract_matches_runtime_sources() -> None:
     assert "graph_node_or_molecular_outputs" in signal_semantics["rdagent_model_benchmark_fixture_boundary_rule"]
     assert "timeseries_prediction_score" in signal_semantics["rdagent_model_benchmark_reference_code_boundary_rule"]
     assert "torch_geometric_or_graph_inputs" in signal_semantics["rdagent_model_benchmark_reference_code_boundary_rule"]
+    assert "execution_templates" in signal_semantics["rdagent_model_execution_template_boundary_rule"]
+    assert "fail_closed" in signal_semantics["rdagent_model_execution_template_boundary_rule"]
+    assert "one_shot_prompts" in signal_semantics["rdagent_model_one_shot_prompt_boundary_rule"]
+    assert "not_torch_geometric_graph_models" in signal_semantics["rdagent_model_one_shot_prompt_boundary_rule"]
+    assert "rdagent/components/coder/model_coder/model_execute_template_v1.txt" in signal_semantics[
+        "rdagent_model_execution_surface_paths"
+    ]
+    assert "rdagent/components/coder/model_coder/one_shot/prompt.yaml" in signal_semantics[
+        "rdagent_model_execution_surface_paths"
+    ]
+    assert "rdagent/components/coder/model_coder/gt_code.py" in signal_semantics[
+        "rdagent_model_execution_surface_paths"
+    ]
     assert "if isinstance(pred_score, pd.DataFrame):" in signal_strategy_source
     assert "pred_score = pred_score.iloc[:, 0]" in signal_strategy_source
     assert "return TradeDecisionWO([], self)" in signal_strategy_source
@@ -2959,6 +2996,25 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
         ]
         == "rdagent_qlib_model_benchmark_reference_code_must_execute_tabular_or_timeseries_prediction_score_tensors_without_torch_geometric_or_graph_inputs"
     )
+    assert (
+        round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
+            "rdagent_model_execution_template_boundary_rule"
+        ]
+        == "rdagent_qlib_model_execution_templates_must_execute_tabular_or_timeseries_prediction_score_tensors_and_fail_closed_without_torch_geometric_graph_inputs"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
+            "rdagent_model_one_shot_prompt_boundary_rule"
+        ]
+        == "rdagent_qlib_model_one_shot_prompts_must_request_tabular_or_timeseries_prediction_score_models_not_torch_geometric_graph_models"
+    )
+    assert round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
+        "rdagent_model_execution_surface_paths"
+    ] == [
+        "rdagent/components/coder/model_coder/model_execute_template_v1.txt",
+        "rdagent/components/coder/model_coder/one_shot/prompt.yaml",
+        "rdagent/components/coder/model_coder/gt_code.py",
+    ]
     assert round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
         "rdagent_supported_model_types"
     ] == ["Tabular", "TimeSeries"]
