@@ -11,6 +11,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = REPO_ROOT / "qlib/backtest/ashare_semantics.py"
+ACCOUNT_PATH = REPO_ROOT / "qlib/backtest/account.py"
 EXCHANGE_PATH = REPO_ROOT / "qlib/backtest/exchange.py"
 POSITION_PATH = REPO_ROOT / "qlib/backtest/position.py"
 DATA_PATH = REPO_ROOT / "qlib/data/data.py"
@@ -337,7 +338,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -362,6 +363,9 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "redefine_order_fill_amount_or_clip_sequence" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_market_impact_or_cost_ratio" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert (
+        "redefine_account_position_or_cash_mutation_order" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
+    assert (
         "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
@@ -377,6 +381,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "trading_calendar_semantics" in contract["rdagent_must_not_redefine"]
     assert "transaction_cost_semantics" in contract["rdagent_must_not_redefine"]
     assert "market_impact_semantics" in contract["rdagent_must_not_redefine"]
+    assert "account_update_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
@@ -419,6 +424,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "order_tradability_semantics" in evidence["fingerprint_scope"]
     assert "order_fill_amount_semantics" in evidence["fingerprint_scope"]
     assert "market_impact_semantics" in evidence["fingerprint_scope"]
+    assert "account_update_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
     assert (
         "runtime_surfaces.backtest_kwargs" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
@@ -530,6 +536,25 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "joinquant_cost_rule": "joinquant_ashare_policy_receives_adjusted_cost_ratio_as_impact_cost",
         "numeric_value_exposure": "runtime_handoff_only_not_prompt_projection",
         "rdagent_rule": "describe_only_do_not_redefine_market_impact_or_cost_ratio",
+    }
+    assert prompt_payload["account_update_semantics"] == {
+        "semantic_name": "a_share_account_position_cash_mutation",
+        "execution_authority": "qlib.backtest.exchange.Exchange.deal_order",
+        "account_update_authority": "qlib.backtest.account.Account.update_order",
+        "account_metrics_authority": "qlib.backtest.account.Account._update_state_from_order",
+        "position_update_authority": "qlib.backtest.position.Position.update_order",
+        "ashare_sellable_update_authority": "qlib.backtest.position.AsharePosition._sell_stock",
+        "trade_update_trigger": "only_trade_value_greater_than_one_e_minus_five_mutates_account_or_position",
+        "failed_or_zero_trade_rule": "failed_order_or_zero_trade_value_does_not_update_position_or_account",
+        "handoff_rule": "exchange_passes_final_trade_value_cost_and_price_to_account_or_position_update",
+        "trade_amount_rule": "mutated_amount_equals_trade_value_divided_by_trade_price",
+        "buy_mutation_order": "position_updates_before_account_metrics",
+        "sell_mutation_order": "account_metrics_update_before_position_update",
+        "buy_cash_rule": "buy_subtracts_trade_value_plus_cost_from_cash",
+        "sell_cash_rule": "sell_routes_trade_value_minus_cost_to_cash_or_cash_delay_by_settle_type",
+        "sellable_amount_rule": "ashare_sells_reduce_sellable_amount_and_day_bar_count_refresh_releases_total_amount",
+        "infinite_position_rule": "skip_update_position_does_not_mutate_account_or_position",
+        "rdagent_rule": "describe_only_do_not_redefine_account_position_or_cash_mutation_order",
     }
     assert prompt_payload["suspension_tradability_semantics"] == {
         "semantic_name": "a_share_suspension_tradability",
@@ -710,6 +735,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "trading_calendar_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "transaction_cost_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "market_impact_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "account_update_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert (
         "suspension_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
@@ -876,6 +902,53 @@ def test_ashare_market_impact_contract_matches_exchange_source() -> None:
     )
 
 
+def test_ashare_account_update_contract_matches_runtime_sources() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    account_update = contract["prompt_projection_payload"]["account_update_semantics"]
+    account_source = ACCOUNT_PATH.read_text()
+    exchange_source = EXCHANGE_PATH.read_text()
+    position_source = POSITION_PATH.read_text()
+
+    assert account_update["semantic_name"] == "a_share_account_position_cash_mutation"
+    assert account_update["execution_authority"] == "qlib.backtest.exchange.Exchange.deal_order"
+    assert account_update["account_update_authority"] == "qlib.backtest.account.Account.update_order"
+    assert account_update["account_metrics_authority"] == "qlib.backtest.account.Account._update_state_from_order"
+    assert account_update["position_update_authority"] == "qlib.backtest.position.Position.update_order"
+    assert account_update["ashare_sellable_update_authority"] == "qlib.backtest.position.AsharePosition._sell_stock"
+    assert (
+        account_update["trade_update_trigger"]
+        == "only_trade_value_greater_than_one_e_minus_five_mutates_account_or_position"
+    )
+    assert account_update["failed_or_zero_trade_rule"] == (
+        "failed_order_or_zero_trade_value_does_not_update_position_or_account"
+    )
+    assert account_update["buy_mutation_order"] == "position_updates_before_account_metrics"
+    assert account_update["sell_mutation_order"] == "account_metrics_update_before_position_update"
+    assert account_update["buy_cash_rule"] == "buy_subtracts_trade_value_plus_cost_from_cash"
+    assert account_update["sell_cash_rule"] == "sell_routes_trade_value_minus_cost_to_cash_or_cash_delay_by_settle_type"
+    assert (
+        account_update["sellable_amount_rule"]
+        == "ashare_sells_reduce_sellable_amount_and_day_bar_count_refresh_releases_total_amount"
+    )
+    assert "if trade_val > 1e-5:" in exchange_source
+    assert "trade_account.update_order(" in exchange_source
+    assert "position.update_order(" in exchange_source
+    assert "if self.current_position.skip_update():" in account_source
+    assert "if order.direction == Order.SELL:" in account_source
+    assert "self._update_state_from_order(order, trade_val, cost, trade_price)" in account_source
+    assert "self.current_position.update_order(order, trade_val, cost, trade_price)" in account_source
+    assert "trade_amount = trade_val / trade_price" in position_source
+    assert 'self.position[stock_id]["amount"] += trade_amount' in position_source
+    assert 'self.position["cash"] -= trade_val + cost' in position_source
+    assert "new_cash = trade_val - cost" in position_source
+    assert 'self.position["cash_delay"] += new_cash' in position_source
+    assert 'self.position["cash"] += new_cash' in position_source
+    assert "self.position[stock_id][self.SELLABLE_AMOUNT_FIELD] = max(" in position_source
+    assert 'self.position[stock_id][self.SELLABLE_AMOUNT_FIELD] = self.position[stock_id]["amount"]' in (
+        position_source
+    )
+
+
 def test_ashare_cash_settlement_contract_matches_position_source() -> None:
     contract = ashare_semantics.rdagent_ashare_semantic_contract()
     cash_settlement = contract["prompt_projection_payload"]["cash_settlement_semantics"]
@@ -1009,6 +1082,14 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert (
         round_tripped["prompt_projection_payload"]["market_impact_semantics"]["runtime_authority"]
         == "qlib.backtest.exchange.Exchange._calc_trade_info_by_order"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["account_update_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_account_position_or_cash_mutation_order"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["account_update_semantics"]["account_update_authority"]
+        == "qlib.backtest.account.Account.update_order"
     )
     assert (
         round_tripped["prompt_projection_payload"]["suspension_tradability_semantics"]["rdagent_rule"]
