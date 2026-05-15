@@ -907,6 +907,15 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "rdagent_model_benchmark_reference_code_boundary_rule": (
             "rdagent_qlib_model_benchmark_reference_code_must_execute_tabular_or_timeseries_prediction_score_tensors_without_torch_geometric_or_graph_inputs"
         ),
+        "rdagent_model_benchmark_identity_rule": (
+            "rdagent_qlib_model_benchmark_fixtures_must_use_qlib_ashare_prediction_score_identity_not_legacy_graph_model_names"
+        ),
+        "rdagent_model_benchmark_task_name": "QlibAshareTemporalScore",
+        "rdagent_model_benchmark_surface_paths": [
+            "rdagent/components/coder/model_coder/benchmark/model_dict.json",
+            "rdagent/components/coder/model_coder/benchmark/gt_code/QlibAshareTemporalScore.py",
+            "rdagent/app/benchmark/model/eval.py",
+        ],
         "rdagent_model_execution_template_boundary_rule": (
             "rdagent_qlib_model_execution_templates_must_execute_tabular_or_timeseries_prediction_score_tensors_and_fail_closed_without_torch_geometric_graph_inputs"
         ),
@@ -2244,6 +2253,16 @@ def test_ashare_prediction_signal_contract_matches_runtime_sources() -> None:
         == "rdagent_qlib_model_benchmark_reference_code_must_execute_tabular_or_timeseries_prediction_score_tensors_without_torch_geometric_or_graph_inputs"
     )
     assert (
+        signal_semantics["rdagent_model_benchmark_identity_rule"]
+        == "rdagent_qlib_model_benchmark_fixtures_must_use_qlib_ashare_prediction_score_identity_not_legacy_graph_model_names"
+    )
+    assert signal_semantics["rdagent_model_benchmark_task_name"] == "QlibAshareTemporalScore"
+    assert signal_semantics["rdagent_model_benchmark_surface_paths"] == [
+        "rdagent/components/coder/model_coder/benchmark/model_dict.json",
+        "rdagent/components/coder/model_coder/benchmark/gt_code/QlibAshareTemporalScore.py",
+        "rdagent/app/benchmark/model/eval.py",
+    ]
+    assert (
         signal_semantics["rdagent_model_execution_template_boundary_rule"]
         == "rdagent_qlib_model_execution_templates_must_execute_tabular_or_timeseries_prediction_score_tensors_and_fail_closed_without_torch_geometric_graph_inputs"
     )
@@ -2289,6 +2308,16 @@ def test_ashare_prediction_signal_contract_matches_runtime_sources() -> None:
     assert "graph_node_or_molecular_outputs" in signal_semantics["rdagent_model_benchmark_fixture_boundary_rule"]
     assert "timeseries_prediction_score" in signal_semantics["rdagent_model_benchmark_reference_code_boundary_rule"]
     assert "torch_geometric_or_graph_inputs" in signal_semantics["rdagent_model_benchmark_reference_code_boundary_rule"]
+    assert "prediction_score_identity" in signal_semantics["rdagent_model_benchmark_identity_rule"]
+    assert "not_legacy_graph_model_names" in signal_semantics["rdagent_model_benchmark_identity_rule"]
+    assert signal_semantics["rdagent_model_benchmark_task_name"] == "QlibAshareTemporalScore"
+    assert "rdagent/components/coder/model_coder/benchmark/model_dict.json" in signal_semantics[
+        "rdagent_model_benchmark_surface_paths"
+    ]
+    assert "rdagent/components/coder/model_coder/benchmark/gt_code/QlibAshareTemporalScore.py" in signal_semantics[
+        "rdagent_model_benchmark_surface_paths"
+    ]
+    assert "rdagent/app/benchmark/model/eval.py" in signal_semantics["rdagent_model_benchmark_surface_paths"]
     assert "execution_templates" in signal_semantics["rdagent_model_execution_template_boundary_rule"]
     assert "fail_closed" in signal_semantics["rdagent_model_execution_template_boundary_rule"]
     assert "one_shot_prompts" in signal_semantics["rdagent_model_one_shot_prompt_boundary_rule"]
@@ -2996,6 +3025,25 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
         ]
         == "rdagent_qlib_model_benchmark_reference_code_must_execute_tabular_or_timeseries_prediction_score_tensors_without_torch_geometric_or_graph_inputs"
     )
+    assert (
+        round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
+            "rdagent_model_benchmark_identity_rule"
+        ]
+        == "rdagent_qlib_model_benchmark_fixtures_must_use_qlib_ashare_prediction_score_identity_not_legacy_graph_model_names"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
+            "rdagent_model_benchmark_task_name"
+        ]
+        == "QlibAshareTemporalScore"
+    )
+    assert round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
+        "rdagent_model_benchmark_surface_paths"
+    ] == [
+        "rdagent/components/coder/model_coder/benchmark/model_dict.json",
+        "rdagent/components/coder/model_coder/benchmark/gt_code/QlibAshareTemporalScore.py",
+        "rdagent/app/benchmark/model/eval.py",
+    ]
     assert (
         round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
             "rdagent_model_execution_template_boundary_rule"

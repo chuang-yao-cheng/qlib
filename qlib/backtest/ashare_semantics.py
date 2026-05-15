@@ -700,6 +700,15 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "rdagent_model_benchmark_reference_code_boundary_rule": (
             "rdagent_qlib_model_benchmark_reference_code_must_execute_tabular_or_timeseries_prediction_score_tensors_without_torch_geometric_or_graph_inputs"
         ),
+        "rdagent_model_benchmark_identity_rule": (
+            "rdagent_qlib_model_benchmark_fixtures_must_use_qlib_ashare_prediction_score_identity_not_legacy_graph_model_names"
+        ),
+        "rdagent_model_benchmark_task_name": "QlibAshareTemporalScore",
+        "rdagent_model_benchmark_surface_paths": [
+            "rdagent/components/coder/model_coder/benchmark/model_dict.json",
+            "rdagent/components/coder/model_coder/benchmark/gt_code/QlibAshareTemporalScore.py",
+            "rdagent/app/benchmark/model/eval.py",
+        ],
         "rdagent_model_execution_template_boundary_rule": (
             "rdagent_qlib_model_execution_templates_must_execute_tabular_or_timeseries_prediction_score_tensors_and_fail_closed_without_torch_geometric_graph_inputs"
         ),
