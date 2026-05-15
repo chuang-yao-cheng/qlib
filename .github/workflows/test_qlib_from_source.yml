@@ -9,6 +9,7 @@ on:
       - "qlib/backtest/ashare_semantics.py"
       - "tests/backtest/test_ashare_semantics.py"
       - ".github/workflows/internal_ashare_semantics.yml"
+      - ".github/workflows/test_qlib_from_pip.yml"
       - ".github/workflows/test_qlib_from_source.yml"
       - ".github/workflows/test_qlib_from_source_slow.yml"
 
