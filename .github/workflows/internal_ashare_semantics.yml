@@ -15,6 +15,7 @@ on:
       - "qlib/backtest/utils.py"
       - "qlib/contrib/eva/alpha.py"
       - "qlib/contrib/evaluate.py"
+      - "qlib/contrib/data/handler.py"
       - "qlib/contrib/strategy/order_generator.py"
       - "qlib/contrib/strategy/signal_strategy.py"
       - "qlib/data/data.py"
@@ -37,6 +38,7 @@ on:
       - "qlib/backtest/utils.py"
       - "qlib/contrib/eva/alpha.py"
       - "qlib/contrib/evaluate.py"
+      - "qlib/contrib/data/handler.py"
       - "qlib/contrib/strategy/order_generator.py"
       - "qlib/contrib/strategy/signal_strategy.py"
       - "qlib/data/data.py"
@@ -111,6 +113,7 @@ jobs:
             qlib/backtest/position.py \
             qlib/backtest/report.py \
             qlib/backtest/utils.py \
+            qlib/contrib/data/handler.py \
             qlib/contrib/eva/alpha.py \
             qlib/contrib/evaluate.py \
             qlib/contrib/strategy/order_generator.py \

@@ -254,6 +254,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "trade_indicator_semantics",
         "executor_decision_semantics",
         "strategy_order_semantics",
+        "supervised_label_semantics",
         "signal_ic_semantics",
         "portfolio_risk_semantics",
         "benchmark_return_semantics",
@@ -557,6 +558,33 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "portfolio_boundary_rule": "signal_ic_metrics_are_prediction_label_quality_metrics_not_portfolio_return_metrics",
         "rdagent_rule": "describe_only_do_not_redefine_signal_ic_or_rank_ic_metrics",
     }
+    supervised_label_semantics = {
+        "semantic_name": "a_share_supervised_forward_return_label",
+        "handler_authority": "qlib.contrib.data.handler.Alpha158",
+        "handler360_authority": "qlib.contrib.data.handler.Alpha360",
+        "loader_authority": "qlib.contrib.data.loader.Alpha158DL",
+        "processor_authority": "qlib.data.dataset.processor.DropnaLabel",
+        "label_group": "label",
+        "label_column": "LABEL0",
+        "label_expression": "Ref($close, -2)/Ref($close, -1) - 1",
+        "label_expression_source": "Alpha158.get_label_config_and_Alpha360.get_label_config",
+        "label_horizon_rule": "label_at_datetime_t_is_close_t_plus_2_over_close_t_plus_1_minus_one",
+        "prediction_execution_alignment_rule": (
+            "label_horizon_matches_strategy_previous_step_signal_execution_without_same_day_fill_assumption"
+        ),
+        "dropna_processor_rule": "DropnaLabel_removes_missing_LABEL0_rows_before_training_or_evaluation",
+        "template_binding_rule": "rdagent_templates_must_use_LABEL0_and_the_qlib_owned_label_expression",
+        "prompt_wording_rule": "describe_as_qlib_contract_defined_forward_return_label_not_undefined_next_several_days_return",
+        "rdagent_template_paths": [
+            "rdagent/scenarios/qlib/experiment/factor_template/conf_baseline.yaml",
+            "rdagent/scenarios/qlib/experiment/factor_template/conf_combined_factors.yaml",
+            "rdagent/scenarios/qlib/experiment/factor_template/conf_combined_factors_sota_model.yaml",
+            "rdagent/scenarios/qlib/experiment/model_template/conf_baseline_factors_model.yaml",
+            "rdagent/scenarios/qlib/experiment/model_template/conf_sota_factors_model.yaml",
+        ],
+        "rdagent_prompt_paths": ["rdagent/scenarios/qlib/experiment/prompts.yaml"],
+        "rdagent_rule": "describe_only_do_not_redefine_supervised_label_expression_or_horizon",
+    }
     portfolio_risk_semantics = {
         "semantic_name": "a_share_portfolio_risk_analysis",
         "record_authority": "qlib.workflow.record_temp.PortAnaRecord",
@@ -662,6 +690,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "trade_indicator_semantics": trade_indicator_semantics,
             "executor_decision_semantics": executor_decision_semantics,
             "strategy_order_semantics": strategy_order_semantics,
+            "supervised_label_semantics": supervised_label_semantics,
             "signal_ic_semantics": signal_ic_semantics,
             "portfolio_risk_semantics": portfolio_risk_semantics,
             "benchmark_return_semantics": benchmark_return_semantics,
@@ -698,6 +727,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_trade_execution_indicators_or_quality_metrics",
             "redefine_executor_decision_lifecycle_or_nested_execution_order",
             "redefine_strategy_signal_to_order_generation",
+            "redefine_supervised_label_expression_or_horizon",
             "redefine_signal_ic_or_rank_ic_metrics",
             "redefine_portfolio_risk_analysis_metrics",
             "redefine_benchmark_return_series_or_default_benchmark",
@@ -814,6 +844,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "trade_indicator_semantics": trade_indicator_semantics,
         "executor_decision_semantics": executor_decision_semantics,
         "strategy_order_semantics": strategy_order_semantics,
+        "supervised_label_semantics": supervised_label_semantics,
         "signal_ic_semantics": signal_ic_semantics,
         "portfolio_risk_semantics": portfolio_risk_semantics,
         "benchmark_return_semantics": benchmark_return_semantics,
@@ -949,7 +980,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
                 "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, price-adjustment, "
-                "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, signal IC, portfolio risk analysis, benchmark return, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+                "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, signal IC, portfolio risk analysis, benchmark return, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
         },
@@ -972,6 +1003,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "trade_indicator_semantics",
                 "executor_decision_semantics",
                 "strategy_order_semantics",
+                "supervised_label_semantics",
                 "signal_ic_semantics",
                 "portfolio_risk_semantics",
                 "benchmark_return_semantics",
@@ -1012,6 +1044,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "trade_indicator_semantics",
                 "executor_decision_semantics",
                 "strategy_order_semantics",
+                "supervised_label_semantics",
                 "signal_ic_semantics",
                 "portfolio_risk_semantics",
                 "benchmark_return_semantics",
