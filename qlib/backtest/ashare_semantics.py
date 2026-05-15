@@ -262,6 +262,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "feedback_metric_semantics",
         "benchmark_return_semantics",
         "universe_benchmark_binding_semantics",
+        "strategy_benchmark_documentation_semantics",
         "runtime_handoff_template_binding_semantics",
         "research_data_source_semantics",
         "research_persona_semantics",
@@ -996,6 +997,19 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         ],
         "rdagent_rule": "bind_market_to_instruments_and_benchmark_to_backtest_without_cross_aliasing",
     }
+    strategy_benchmark_documentation_semantics = {
+        "semantic_name": "a_share_enhanced_indexing_benchmark_documentation",
+        "strategy_authority": "qlib.contrib.strategy.signal_strategy.EnhancedIndexingStrategy",
+        "documentation_source_path": "qlib/contrib/strategy/signal_strategy.py",
+        "benchmark_context": "China A-share enhanced indexing",
+        "benchmark_example": "CSI 300",
+        "benchmark_code_example": "SH000300",
+        "forbidden_cross_market_examples": ["S&P 500", "SP500", "S&P500"],
+        "documentation_rule": (
+            "enhanced_indexing_strategy_examples_must_use_a_share_benchmark_context_not_us_index_examples"
+        ),
+        "rdagent_rule": "consume_a_share_strategy_benchmark_examples_without_cross_market_index_aliases",
+    }
     runtime_handoff_template_binding_semantics = {
         "semantic_name": "a_share_rd_agent_runtime_handoff_template_binding",
         "handoff_id": RDAGENT_ASHARE_RUNTIME_HANDOFF_ID,
@@ -1040,6 +1054,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "feedback_metric_semantics": feedback_metric_semantics,
             "benchmark_return_semantics": benchmark_return_semantics,
             "universe_benchmark_binding_semantics": universe_benchmark_binding_semantics,
+            "strategy_benchmark_documentation_semantics": strategy_benchmark_documentation_semantics,
             "runtime_handoff_template_binding_semantics": runtime_handoff_template_binding_semantics,
             "research_data_source_semantics": research_data_source_semantics,
             "research_persona_semantics": research_persona_semantics,
@@ -1085,6 +1100,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_feedback_metric_paths_or_label_derived_utility_as_qlib_metric",
             "redefine_benchmark_return_series_or_default_benchmark",
             "redefine_universe_benchmark_template_binding_or_cross_alias_market_and_benchmark",
+            "redefine_strategy_benchmark_documentation_or_use_cross_market_index_example",
             "redefine_runtime_handoff_or_template_execution_kwargs",
             "redefine_research_data_source_availability_or_imply_unregistered_sources",
             "redefine_research_persona_or_replace_a_share_market_context",
@@ -1210,6 +1226,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "feedback_metric_semantics": feedback_metric_semantics,
         "benchmark_return_semantics": benchmark_return_semantics,
         "universe_benchmark_binding_semantics": universe_benchmark_binding_semantics,
+        "strategy_benchmark_documentation_semantics": strategy_benchmark_documentation_semantics,
         "runtime_handoff_template_binding_semantics": {
             "semantic_name": runtime_handoff_template_binding_semantics["semantic_name"],
             "handoff_id": runtime_handoff_template_binding_semantics["handoff_id"],
@@ -1385,6 +1402,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "feedback_metric_semantics",
                 "benchmark_return_semantics",
                 "universe_benchmark_binding_semantics",
+                "strategy_benchmark_documentation_semantics",
                 "runtime_handoff_template_binding_semantics",
                 "research_data_source_semantics",
                 "research_persona_semantics",
@@ -1434,6 +1452,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "feedback_metric_semantics",
                 "benchmark_return_semantics",
                 "universe_benchmark_binding_semantics",
+                "strategy_benchmark_documentation_semantics",
                 "runtime_handoff_template_binding_semantics",
                 "research_data_source_semantics",
                 "research_persona_semantics",
