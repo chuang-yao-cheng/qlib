@@ -18,7 +18,10 @@ EXECUTOR_PATH = REPO_ROOT / "qlib/backtest/executor.py"
 POSITION_PATH = REPO_ROOT / "qlib/backtest/position.py"
 REPORT_PATH = REPO_ROOT / "qlib/backtest/report.py"
 UTILS_PATH = REPO_ROOT / "qlib/backtest/utils.py"
+ORDER_GENERATOR_PATH = REPO_ROOT / "qlib/contrib/strategy/order_generator.py"
+SIGNAL_STRATEGY_PATH = REPO_ROOT / "qlib/contrib/strategy/signal_strategy.py"
 DATA_PATH = REPO_ROOT / "qlib/data/data.py"
+STRATEGY_BASE_PATH = REPO_ROOT / "qlib/strategy/base.py"
 
 spec = importlib.util.spec_from_file_location("ashare_semantics_under_test", MODULE_PATH)
 assert spec is not None and spec.loader is not None
@@ -342,7 +345,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -378,6 +381,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         "redefine_executor_decision_lifecycle_or_nested_execution_order"
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
+    assert "redefine_strategy_signal_to_order_generation" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert (
         "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
@@ -398,6 +402,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "account_valuation_semantics" in contract["rdagent_must_not_redefine"]
     assert "trade_indicator_semantics" in contract["rdagent_must_not_redefine"]
     assert "executor_decision_semantics" in contract["rdagent_must_not_redefine"]
+    assert "strategy_order_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
@@ -444,6 +449,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "account_valuation_semantics" in evidence["fingerprint_scope"]
     assert "trade_indicator_semantics" in evidence["fingerprint_scope"]
     assert "executor_decision_semantics" in evidence["fingerprint_scope"]
+    assert "strategy_order_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
     assert (
         "runtime_surfaces.backtest_kwargs" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
@@ -678,6 +684,46 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "inner_result_rule": "nested_executor_collects_inner_execute_results_order_indicators_and_decision_time_windows",
         "rdagent_rule": "describe_only_do_not_redefine_executor_decision_lifecycle_or_nested_execution_order",
     }
+    assert prompt_payload["strategy_order_semantics"] == {
+        "semantic_name": "a_share_strategy_signal_to_order_generation",
+        "base_strategy_authority": "qlib.strategy.base.BaseStrategy.generate_trade_decision",
+        "topk_strategy_authority": "qlib.contrib.strategy.signal_strategy.TopkDropoutStrategy.generate_trade_decision",
+        "weight_strategy_authority": "qlib.contrib.strategy.signal_strategy.WeightStrategyBase.generate_trade_decision",
+        "order_generator_authority": (
+            "qlib.contrib.strategy.order_generator.OrderGenerator.generate_order_list_from_target_weight_position"
+        ),
+        "interacting_order_generator_authority": (
+            "qlib.contrib.strategy.order_generator.OrderGenWInteract.generate_order_list_from_target_weight_position"
+        ),
+        "non_interacting_order_generator_authority": (
+            "qlib.contrib.strategy.order_generator.OrderGenWOInteract.generate_order_list_from_target_weight_position"
+        ),
+        "target_amount_order_authority": "qlib.backtest.exchange.Exchange.generate_order_for_target_amount_position",
+        "trade_decision_type": "qlib.backtest.decision.TradeDecisionWO",
+        "signal_authority": "qlib.backtest.signal.Signal.get_signal",
+        "template_strategy_binding": "qlib.contrib.strategy.TopkDropoutStrategy",
+        "prediction_window_rule": "strategy_reads_signal_from_previous_calendar_step_shift_one",
+        "dataframe_signal_rule": "topk_dropout_uses_first_signal_column_when_prediction_is_dataframe",
+        "missing_signal_rule": "missing_signal_returns_empty_TradeDecisionWO",
+        "topk_selection_rule": "topk_dropout_ranks_current_holdings_and_new_candidates_by_pred_score_descending",
+        "dropout_rule": "combined_last_and_today_scores_prevent_dropping_higher_score_stock_for_lower_score_buy",
+        "sell_order_rule": "sell_orders_are_generated_before_buy_orders_and_simulated_on_temp_position_for_cash",
+        "buy_budget_rule": "buy_budget_equals_temp_cash_times_risk_degree_divided_by_buy_count",
+        "hold_threshold_rule": "sell_requires_current_holding_count_at_least_hold_thresh",
+        "only_tradable_rule": "only_tradable_filters_selection_candidates_by_exchange_tradability",
+        "forbid_all_trade_at_limit_rule": (
+            "forbid_all_trade_at_limit_checks_any_limit_direction_else_directional_limit"
+        ),
+        "buy_round_lot_rule": "buy_amount_uses_deal_price_factor_and_exchange_round_amount_by_trade_unit",
+        "weight_strategy_rule": "weight_strategy_delegates_target_weight_to_order_generator_after_signal_lookup",
+        "interacting_generator_rule": "interacting_order_generator_uses_trade_date_tradability_and_prices",
+        "non_interacting_generator_rule": (
+            "non_interacting_order_generator_uses_pred_date_close_or_current_holding_price"
+        ),
+        "target_order_rule": "exchange_generates_target_amount_orders_with_deterministic_shuffled_stock_order",
+        "target_order_return_rule": "exchange_returns_sell_orders_before_buy_orders",
+        "rdagent_rule": "describe_only_do_not_redefine_strategy_signal_to_order_generation",
+    }
     assert prompt_payload["suspension_tradability_semantics"] == {
         "semantic_name": "a_share_suspension_tradability",
         "suspension_indicator_field": "$close",
@@ -861,6 +907,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "account_valuation_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "trade_indicator_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "executor_decision_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "strategy_order_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert (
         "suspension_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
@@ -1345,6 +1392,125 @@ def test_ashare_executor_decision_contract_matches_runtime_sources() -> None:
     assert 'def get_data_cal_range(self, rtype: str = "full")' in utils_source
 
 
+def test_ashare_strategy_order_contract_matches_runtime_sources() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    strategy_order = contract["prompt_projection_payload"]["strategy_order_semantics"]
+    base_strategy_source = STRATEGY_BASE_PATH.read_text()
+    signal_strategy_source = SIGNAL_STRATEGY_PATH.read_text()
+    order_generator_source = ORDER_GENERATOR_PATH.read_text()
+    exchange_source = EXCHANGE_PATH.read_text()
+
+    assert strategy_order["semantic_name"] == "a_share_strategy_signal_to_order_generation"
+    assert strategy_order["base_strategy_authority"] == "qlib.strategy.base.BaseStrategy.generate_trade_decision"
+    assert (
+        strategy_order["topk_strategy_authority"]
+        == "qlib.contrib.strategy.signal_strategy.TopkDropoutStrategy.generate_trade_decision"
+    )
+    assert (
+        strategy_order["weight_strategy_authority"]
+        == "qlib.contrib.strategy.signal_strategy.WeightStrategyBase.generate_trade_decision"
+    )
+    assert strategy_order["trade_decision_type"] == "qlib.backtest.decision.TradeDecisionWO"
+    assert strategy_order["signal_authority"] == "qlib.backtest.signal.Signal.get_signal"
+    assert strategy_order["template_strategy_binding"] == "qlib.contrib.strategy.TopkDropoutStrategy"
+    assert strategy_order["prediction_window_rule"] == "strategy_reads_signal_from_previous_calendar_step_shift_one"
+    assert strategy_order["dataframe_signal_rule"] == (
+        "topk_dropout_uses_first_signal_column_when_prediction_is_dataframe"
+    )
+    assert strategy_order["missing_signal_rule"] == "missing_signal_returns_empty_TradeDecisionWO"
+    assert strategy_order["topk_selection_rule"] == (
+        "topk_dropout_ranks_current_holdings_and_new_candidates_by_pred_score_descending"
+    )
+    assert strategy_order["dropout_rule"] == (
+        "combined_last_and_today_scores_prevent_dropping_higher_score_stock_for_lower_score_buy"
+    )
+    assert strategy_order["sell_order_rule"] == (
+        "sell_orders_are_generated_before_buy_orders_and_simulated_on_temp_position_for_cash"
+    )
+    assert strategy_order["buy_budget_rule"] == ("buy_budget_equals_temp_cash_times_risk_degree_divided_by_buy_count")
+    assert strategy_order["hold_threshold_rule"] == "sell_requires_current_holding_count_at_least_hold_thresh"
+    assert strategy_order["only_tradable_rule"] == "only_tradable_filters_selection_candidates_by_exchange_tradability"
+    assert strategy_order["forbid_all_trade_at_limit_rule"] == (
+        "forbid_all_trade_at_limit_checks_any_limit_direction_else_directional_limit"
+    )
+    assert strategy_order["buy_round_lot_rule"] == (
+        "buy_amount_uses_deal_price_factor_and_exchange_round_amount_by_trade_unit"
+    )
+    assert strategy_order["weight_strategy_rule"] == (
+        "weight_strategy_delegates_target_weight_to_order_generator_after_signal_lookup"
+    )
+    assert strategy_order["interacting_generator_rule"] == (
+        "interacting_order_generator_uses_trade_date_tradability_and_prices"
+    )
+    assert strategy_order["non_interacting_generator_rule"] == (
+        "non_interacting_order_generator_uses_pred_date_close_or_current_holding_price"
+    )
+    assert strategy_order["target_order_rule"] == (
+        "exchange_generates_target_amount_orders_with_deterministic_shuffled_stock_order"
+    )
+    assert strategy_order["target_order_return_rule"] == "exchange_returns_sell_orders_before_buy_orders"
+    assert strategy_order["rdagent_rule"] == "describe_only_do_not_redefine_strategy_signal_to_order_generation"
+
+    assert "class BaseStrategy:" in base_strategy_source
+    assert "def generate_trade_decision(" in base_strategy_source
+    assert "class TopkDropoutStrategy(BaseSignalStrategy):" in signal_strategy_source
+    assert "def generate_trade_decision(self, execute_result=None):" in signal_strategy_source
+    assert "pred_start_time, pred_end_time = self.trade_calendar.get_step_time(trade_step, shift=1)" in (
+        signal_strategy_source
+    )
+    assert "pred_score = self.signal.get_signal(start_time=pred_start_time, end_time=pred_end_time)" in (
+        signal_strategy_source
+    )
+    assert "if isinstance(pred_score, pd.DataFrame):" in signal_strategy_source
+    assert "pred_score = pred_score.iloc[:, 0]" in signal_strategy_source
+    assert "return TradeDecisionWO([], self)" in signal_strategy_source
+    assert "current_temp: Position = copy.deepcopy(self.trade_position)" in signal_strategy_source
+    assert "last = pred_score.reindex(current_stock_list).sort_values(ascending=False).index" in (
+        signal_strategy_source
+    )
+    assert "comb = pred_score.reindex(last.union(pd.Index(today))).sort_values(ascending=False).index" in (
+        signal_strategy_source
+    )
+    assert "direction=None if self.forbid_all_trade_at_limit else OrderDir.SELL" in signal_strategy_source
+    assert "if current_temp.get_stock_count(code, bar=time_per_step) < self.hold_thresh:" in signal_strategy_source
+    assert "if self.trade_exchange.check_order(sell_order):" in signal_strategy_source
+    assert "self.trade_exchange.deal_order(" in signal_strategy_source
+    assert "value = cash * self.risk_degree / len(buy) if len(buy) > 0 else 0" in signal_strategy_source
+    assert "buy_amount = self.trade_exchange.round_amount_by_trade_unit(buy_amount, factor)" in (signal_strategy_source)
+    assert "return TradeDecisionWO(sell_order_list + buy_order_list, self)" in signal_strategy_source
+    assert "class WeightStrategyBase(BaseSignalStrategy):" in signal_strategy_source
+    assert "target_weight_position = self.generate_target_weight_position(" in signal_strategy_source
+    assert "self.order_generator.generate_order_list_from_target_weight_position(" in signal_strategy_source
+    assert "return TradeDecisionWO(order_list, self)" in signal_strategy_source
+
+    assert "class OrderGenWInteract(OrderGenerator):" in order_generator_source
+    assert "if target_weight_position is None:\n            return []" in order_generator_source
+    assert "current_tradable_value = trade_exchange.calculate_amount_position_value(" in order_generator_source
+    assert "reserved_cash = (1.0 - risk_degree) * (current_total_value + current.get_cash())" in (
+        order_generator_source
+    )
+    assert "current_tradable_value /= 1 + max(trade_exchange.close_cost, trade_exchange.open_cost)" in (
+        order_generator_source
+    )
+    assert "trade_exchange.generate_amount_position_from_weight_position(" in order_generator_source
+    assert "class OrderGenWOInteract(OrderGenerator):" in order_generator_source
+    assert "risk_total_value = risk_degree * current.calculate_value()" in order_generator_source
+    assert "trade_exchange.get_close(stock_id, start_time=pred_start_time, end_time=pred_end_time)" in (
+        order_generator_source
+    )
+    assert "current.get_stock_price(stock_id)" in order_generator_source
+    assert "trade_exchange.generate_order_for_target_amount_position(" in order_generator_source
+
+    assert "def generate_order_for_target_amount_position(" in exchange_source
+    assert "random.seed(0)" in exchange_source
+    assert "random.shuffle(sorted_ids)" in exchange_source
+    assert "if not self.is_stock_tradable(stock_id=stock_id, start_time=start_time, end_time=end_time):" in (
+        exchange_source
+    )
+    assert "deal_amount = self.get_real_deal_amount(current_amount, target_amount, factor)" in exchange_source
+    assert "return sell_order_list + buy_order_list" in exchange_source
+
+
 def test_ashare_cash_settlement_contract_matches_position_source() -> None:
     contract = ashare_semantics.rdagent_ashare_semantic_contract()
     cash_settlement = contract["prompt_projection_payload"]["cash_settlement_semantics"]
@@ -1514,6 +1680,14 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert (
         round_tripped["prompt_projection_payload"]["executor_decision_semantics"]["base_executor_authority"]
         == "qlib.backtest.executor.BaseExecutor.collect_data"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["strategy_order_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_strategy_signal_to_order_generation"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["strategy_order_semantics"]["topk_strategy_authority"]
+        == "qlib.contrib.strategy.signal_strategy.TopkDropoutStrategy.generate_trade_decision"
     )
     assert (
         round_tripped["prompt_projection_payload"]["suspension_tradability_semantics"]["rdagent_rule"]
