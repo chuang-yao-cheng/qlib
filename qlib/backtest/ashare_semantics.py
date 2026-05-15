@@ -249,6 +249,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "execution_price_semantics",
         "price_adjustment_semantics",
         "price_limit_semantics",
+        "settlement_semantics",
         "trade_unit",
         "position_type",
         "settlement_rule",
@@ -287,6 +288,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_trade_unit_or_position_type",
             "redefine_price_limit_thresholds_or_authoritative_fields",
             "treat_board_fallback_as_primary_price_limit_authority",
+            "redefine_settlement_or_sellable_position_state",
             "redefine_cost_model_or_exchange_kwargs",
             "treat_research_prompt_projection_as_backtest_authority",
             "claim_a_share_alignment_without_qlib_contract_fingerprint",
@@ -426,10 +428,19 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "rdagent_rule": "describe_only_do_not_redefine_price_limit_thresholds_or_fields",
         },
         "settlement_semantics": {
+            "semantic_name": "a_share_t_plus_1_stock_settlement",
             "settlement_rule": market_semantics["settlement_rule"],
             "same_day_sell_policy": market_semantics["same_day_sell_policy"],
             "position_type": market_semantics["position_type"],
+            "sellable_state_field": "sellable_amount",
+            "initial_sellable_rule": "existing_or_settled_holdings_are_sellable",
+            "intraday_buy_rule": "same_day_buys_increase_total_amount_but_not_sellable_amount",
+            "intraday_bar_rule": "non_day_bars_do_not_release_same_day_buys",
+            "day_commit_rule": "day_bar_commit_sets_sellable_amount_to_total_amount",
+            "sell_order_clip_rule": "sell_orders_are_clipped_by_position_get_sellable_amount",
+            "sell_overdraft_rule": "AsharePosition_rejects_sells_above_sellable_amount",
             "runtime_authority": "qlib.backtest.position.AsharePosition",
+            "exchange_clip_authority": "qlib.backtest.exchange.Exchange._calc_trade_info_by_order",
             "rdagent_rule": "describe_only_do_not_redefine_position_or_settlement",
         },
         "order_unit_semantics": {
@@ -457,7 +468,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
                 "but it must not redefine trade unit, position, execution-price, price-adjustment, "
-                "suspension/tradability, price-limit, or cost semantics."
+                "suspension/tradability, price-limit, settlement, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
         },

@@ -334,7 +334,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         "relationship_rule": (
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine trade unit, position, execution-price, price-adjustment, "
-            "suspension/tradability, price-limit, or cost semantics."
+            "suspension/tradability, price-limit, settlement, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -350,6 +350,9 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         "treat_board_fallback_as_primary_price_limit_authority"
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
+    assert (
+        "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
     assert "redefine_cost_model_or_exchange_kwargs" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert set(contract["failure_semantics"].values()) == {"fail_closed"}
     assert "instrument_identity_semantics" in contract["rdagent_must_not_redefine"]
@@ -358,6 +361,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_limit_semantics" in contract["rdagent_must_not_redefine"]
+    assert "settlement_semantics" in contract["rdagent_must_not_redefine"]
     assert "cost_model" in contract["rdagent_must_not_redefine"]
     assert contract["market_semantics"]["region"] == "cn"
     assert contract["market_semantics"]["trade_unit"] == 100
@@ -509,10 +513,19 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     }
     assert relaxed_contract["prompt_projection_payload"]["price_limit_semantics"]["price_limit_mode"] == "auto"
     assert prompt_payload["settlement_semantics"] == {
+        "semantic_name": "a_share_t_plus_1_stock_settlement",
         "settlement_rule": "t_plus_1_stock",
         "same_day_sell_policy": "shares_bought_today_are_unsellable_until_day_commit",
         "position_type": "AsharePosition",
+        "sellable_state_field": "sellable_amount",
+        "initial_sellable_rule": "existing_or_settled_holdings_are_sellable",
+        "intraday_buy_rule": "same_day_buys_increase_total_amount_but_not_sellable_amount",
+        "intraday_bar_rule": "non_day_bars_do_not_release_same_day_buys",
+        "day_commit_rule": "day_bar_commit_sets_sellable_amount_to_total_amount",
+        "sell_order_clip_rule": "sell_orders_are_clipped_by_position_get_sellable_amount",
+        "sell_overdraft_rule": "AsharePosition_rejects_sells_above_sellable_amount",
         "runtime_authority": "qlib.backtest.position.AsharePosition",
+        "exchange_clip_authority": "qlib.backtest.exchange.Exchange._calc_trade_info_by_order",
         "rdagent_rule": "describe_only_do_not_redefine_position_or_settlement",
     }
     assert prompt_payload["order_unit_semantics"] == {
@@ -599,6 +612,9 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
         == "board_thresholds_are_runtime_compatibility_fallback_only_not_primary_authority"
     )
     assert round_tripped["prompt_projection_payload"]["settlement_semantics"]["settlement_rule"] == "t_plus_1_stock"
+    assert (
+        round_tripped["prompt_projection_payload"]["settlement_semantics"]["sellable_state_field"] == "sellable_amount"
+    )
     assert round_tripped["prompt_projection_payload"]["order_unit_semantics"]["trade_unit"] == 100
     assert (
         round_tripped["prompt_projection_payload"]["order_unit_semantics"]["rdagent_rule"]
