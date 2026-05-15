@@ -304,8 +304,21 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "runtime_authority": "qlib.backtest.position.AsharePosition",
         "rdagent_rule": "describe_only_do_not_redefine_position_or_settlement",
     }
+    assert prompt_payload["order_unit_semantics"] == {
+        "semantic_name": "a_share_round_lot",
+        "qlib_parameter": "trade_unit",
+        "trade_unit": 100,
+        "amount_unit": "share",
+        "buy_rounding_rule": "round_buy_amount_down_to_trade_unit_after_cash_and_volume_limits",
+        "sell_rounding_rule": "round_sell_amount_down_to_trade_unit_except_full_liquidation",
+        "full_liquidation_rule": "sell_all_remaining_position_without_round_lot_residual",
+        "factor_adjustment_rule": "apply_order_factor_when_trade_uses_unadjusted_prices",
+        "runtime_authority": "qlib.backtest.exchange.Exchange.round_amount_by_trade_unit",
+        "rdagent_rule": "describe_only_do_not_redefine_trade_unit_or_round_lot_policy",
+    }
     assert "price_limit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "settlement_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "order_unit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "settlement_rule" in strict_contract["rdagent_must_not_redefine"]
     assert "same_day_sell_policy" in strict_contract["rdagent_must_not_redefine"]
     assert not _contains_key(prompt_payload, {"runtime_surfaces", "cost_model", "exchange_kwargs", "backtest_kwargs"})
@@ -343,6 +356,11 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert round_tripped["prompt_projection_payload"]["projection_id"] == "qlib_joinquant_ashare_prompt_projection_v1"
     assert round_tripped["prompt_projection_payload"]["price_limit_semantics"]["price_limit_mode"] == "auto"
     assert round_tripped["prompt_projection_payload"]["settlement_semantics"]["settlement_rule"] == "t_plus_1_stock"
+    assert round_tripped["prompt_projection_payload"]["order_unit_semantics"]["trade_unit"] == 100
+    assert (
+        round_tripped["prompt_projection_payload"]["order_unit_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_trade_unit_or_round_lot_policy"
+    )
     assert round_tripped["runtime_handoff_contract"]["mutation_policy"] == "pass_through_only"
 
 
