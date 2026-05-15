@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import asdict, dataclass, fields
 from typing import Any, Mapping
 
@@ -191,6 +193,11 @@ def joinquant_ashare_backtest_kwargs(*, strict_price_limit: bool = True) -> dict
     }
 
 
+def _stable_semantic_fingerprint(payload: Mapping[str, Any]) -> str:
+    encoded = json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict[str, Any]:
     """Return the Qlib-owned A-share semantic contract consumed by RD-Agent.
 
@@ -199,8 +206,56 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
     """
 
     policy = JOINQUANT_ASHARE_POLICY
+    schema_version = "qlib_ashare_semantic_contract.v1"
+    market_semantics = {
+        "market": "china_a_share",
+        "region": "cn",
+        "trade_unit": policy.trade_unit,
+        "position_type": policy.position_type,
+        "deal_price": policy.deal_price,
+        "limit_threshold": JOINQUANT_ASHARE_LIMIT_THRESHOLD,
+        "limit_threshold_aliases": sorted(JOINQUANT_ASHARE_ALIASES),
+        "price_limit_modes": ["auto", "strict", "board_fallback"],
+        "authoritative_limit_fields": [policy.up_limit_field, policy.down_limit_field],
+        "board_threshold_fields": {
+            "main_board_threshold": policy.main_board_threshold,
+            "star_chinext_threshold": policy.star_chinext_threshold,
+            "bse_threshold": policy.bse_threshold,
+            "chinext_registration_start_date": policy.chinext_registration_start_date,
+        },
+        "cost_model": {
+            "open_cost": policy.open_cost,
+            "close_cost": policy.close_cost,
+            "close_commission": policy.close_commission,
+            "close_tax": policy.close_tax,
+            "min_cost": policy.min_cost,
+        },
+    }
+    runtime_surfaces = {
+        "policy_class": f"{QLIB_ASHARE_AUTHORITY_COMPONENT}.JoinQuantAshareBacktestPolicy",
+        "policy_defaults": asdict(policy),
+        "exchange_kwargs": joinquant_ashare_exchange_kwargs(strict_price_limit=strict_price_limit),
+        "backtest_kwargs": joinquant_ashare_backtest_kwargs(strict_price_limit=strict_price_limit),
+    }
+    rdagent_must_not_redefine = [
+        "trade_unit",
+        "position_type",
+        "limit_threshold_aliases",
+        "price_limit_modes",
+        "authoritative_limit_fields",
+        "board_threshold_fields",
+        "cost_model",
+    ]
+    semantic_fingerprint = _stable_semantic_fingerprint(
+        {
+            "schema_version": schema_version,
+            "market_semantics": market_semantics,
+            "runtime_surfaces": runtime_surfaces,
+            "rdagent_must_not_redefine": rdagent_must_not_redefine,
+        }
+    )
     return {
-        "schema_version": "qlib_ashare_semantic_contract.v1",
+        "schema_version": schema_version,
         "contract_id": RDAGENT_ASHARE_CONTRACT_ID,
         "status": "active",
         "source_component": QLIB_ASHARE_AUTHORITY_COMPONENT,
@@ -214,45 +269,76 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             ),
             "fail_closed_on_missing_contract": True,
         },
-        "market_semantics": {
-            "market": "china_a_share",
-            "region": "cn",
-            "trade_unit": policy.trade_unit,
-            "position_type": policy.position_type,
-            "deal_price": policy.deal_price,
-            "limit_threshold": JOINQUANT_ASHARE_LIMIT_THRESHOLD,
-            "limit_threshold_aliases": sorted(JOINQUANT_ASHARE_ALIASES),
-            "price_limit_modes": ["auto", "strict", "board_fallback"],
-            "authoritative_limit_fields": [policy.up_limit_field, policy.down_limit_field],
-            "board_threshold_fields": {
-                "main_board_threshold": policy.main_board_threshold,
-                "star_chinext_threshold": policy.star_chinext_threshold,
-                "bse_threshold": policy.bse_threshold,
-                "chinext_registration_start_date": policy.chinext_registration_start_date,
-            },
-            "cost_model": {
-                "open_cost": policy.open_cost,
-                "close_cost": policy.close_cost,
-                "close_commission": policy.close_commission,
-                "close_tax": policy.close_tax,
-                "min_cost": policy.min_cost,
-            },
+        "semantic_boundary": {
+            "authority_component": QLIB_ASHARE_AUTHORITY_COMPONENT,
+            "consumer_component": RDAGENT_ASHARE_CONSUMER_COMPONENT,
+            "authority_rule": "Qlib owns executable JoinQuant-compatible A-share backtest semantics.",
+            "consumer_rule": "RD-Agent may consume a bounded research-generation projection of this contract only.",
+            "rdagent_allowed_actions": [
+                "render_contract_projection_in_research_context",
+                "carry_contract_id_schema_version_and_fingerprint_into_generated_evidence",
+                "pass_qlib_owned_runtime_kwargs_to_execution_surfaces",
+                "fail_closed_when_contract_is_missing_malformed_or_unsupported",
+            ],
+            "rdagent_forbidden_actions": [
+                "redefine_trade_unit_or_position_type",
+                "redefine_price_limit_thresholds_or_authoritative_fields",
+                "redefine_cost_model_or_exchange_kwargs",
+                "treat_research_prompt_projection_as_backtest_authority",
+                "claim_a_share_alignment_without_qlib_contract_fingerprint",
+            ],
         },
-        "runtime_surfaces": {
-            "policy_class": f"{QLIB_ASHARE_AUTHORITY_COMPONENT}.JoinQuantAshareBacktestPolicy",
-            "policy_defaults": asdict(policy),
-            "exchange_kwargs": joinquant_ashare_exchange_kwargs(strict_price_limit=strict_price_limit),
-            "backtest_kwargs": joinquant_ashare_backtest_kwargs(strict_price_limit=strict_price_limit),
+        "failure_semantics": {
+            "missing_contract": "fail_closed",
+            "unsupported_schema_version": "fail_closed",
+            "missing_required_field": "fail_closed",
+            "malformed_contract": "fail_closed",
+            "runtime_projection_drift": "fail_closed",
+            "claim_without_evidence_fingerprint": "fail_closed",
         },
-        "rdagent_must_not_redefine": [
-            "trade_unit",
-            "position_type",
-            "limit_threshold_aliases",
-            "price_limit_modes",
-            "authoritative_limit_fields",
-            "board_threshold_fields",
-            "cost_model",
-        ],
+        "evidence_contract": {
+            "semantic_fingerprint": semantic_fingerprint,
+            "fingerprint_algorithm": "sha256_json_canonical_v1",
+            "fingerprint_scope": [
+                "schema_version",
+                "market_semantics",
+                "runtime_surfaces",
+                "rdagent_must_not_redefine",
+            ],
+            "rdagent_required_evidence_fields": [
+                "qlib_contract_id",
+                "qlib_contract_schema_version",
+                "qlib_contract_fingerprint",
+                "qlib_source_component",
+                "qlib_semantic_authority",
+            ],
+        },
+        "projection_contract": {
+            "rdagent_prompt_projection_fields": [
+                "contract_id",
+                "schema_version",
+                "source_component",
+                "consumer_component",
+                "semantic_boundary",
+                "failure_semantics",
+                "evidence_contract.semantic_fingerprint",
+                "market_semantics.market",
+                "market_semantics.region",
+                "market_semantics.trade_unit",
+                "market_semantics.position_type",
+                "market_semantics.limit_threshold",
+                "market_semantics.authoritative_limit_fields",
+            ],
+            "rdagent_prompt_forbidden_fields": [
+                "runtime_surfaces.policy_defaults",
+                "runtime_surfaces.exchange_kwargs",
+                "runtime_surfaces.backtest_kwargs",
+                "market_semantics.cost_model",
+            ],
+        },
+        "market_semantics": market_semantics,
+        "runtime_surfaces": runtime_surfaces,
+        "rdagent_must_not_redefine": rdagent_must_not_redefine,
     }
 
 
