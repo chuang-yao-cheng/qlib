@@ -709,6 +709,20 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "rdagent/components/coder/model_coder/benchmark/gt_code/QlibAshareTemporalScore.py",
             "rdagent/app/benchmark/model/eval.py",
         ],
+        "rdagent_model_benchmark_evidence_rule": (
+            "rdagent_qlib_model_benchmark_reference_code_must_emit_batch_size_by_one_prediction_score_tensor_from_declared_timeseries_feature_window"
+        ),
+        "rdagent_model_benchmark_execution_contract": {
+            "model_class": "QlibAshareTemporalScoreModel",
+            "model_cls_symbol": "model_cls",
+            "model_type": "TimeSeries",
+            "input_tensor_name": "feature_window",
+            "input_rank": 3,
+            "input_axes": ["batch_size", "datetime_window", "feature"],
+            "required_init_kwargs": ["num_features", "num_timesteps"],
+            "output_shape": ["batch_size", 1],
+            "score_head_name": "score_head",
+        },
         "rdagent_model_execution_template_boundary_rule": (
             "rdagent_qlib_model_execution_templates_must_execute_tabular_or_timeseries_prediction_score_tensors_and_fail_closed_without_torch_geometric_graph_inputs"
         ),
