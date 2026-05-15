@@ -579,9 +579,34 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "annualized_return_rule": "sum_mode_annualized_return_equals_mean_times_annualization_scaler",
         "information_ratio_rule": "information_ratio_equals_mean_over_std_times_square_root_annualization_scaler",
         "max_drawdown_rule": "sum_mode_max_drawdown_equals_min_of_cumulative_return_minus_running_cumulative_max",
+        "metric_path_format": "{freq}.{report_type}.{risk_metric}",
+        "metric_path_frequency": "1day",
+        "metric_path_whitespace_rule": "metric_paths_are_exact_without_leading_or_trailing_whitespace",
+        "metric_path_report_type_rule": "prompt_context_uses_without_cost_and_feedback_bandit_ui_use_with_cost",
+        "rdagent_prompt_metric_paths": [
+            "1day.excess_return_without_cost.annualized_return",
+            "1day.excess_return_without_cost.max_drawdown",
+        ],
+        "rdagent_feedback_metric_paths": [
+            "1day.excess_return_with_cost.annualized_return",
+            "1day.excess_return_with_cost.max_drawdown",
+        ],
+        "rdagent_bandit_metric_paths": [
+            "1day.excess_return_with_cost.annualized_return",
+            "1day.excess_return_with_cost.information_ratio",
+            "1day.excess_return_with_cost.max_drawdown",
+        ],
+        "rdagent_ui_metric_paths": [
+            "1day.excess_return_with_cost.annualized_return",
+            "1day.excess_return_with_cost.information_ratio",
+            "1day.excess_return_with_cost.max_drawdown",
+        ],
         "rdagent_consumed_metric_paths": [
             "1day.excess_return_without_cost.annualized_return",
             "1day.excess_return_without_cost.max_drawdown",
+            "1day.excess_return_with_cost.annualized_return",
+            "1day.excess_return_with_cost.information_ratio",
+            "1day.excess_return_with_cost.max_drawdown",
         ],
         "rdagent_rule": "describe_only_do_not_redefine_portfolio_risk_analysis_metrics",
     }
