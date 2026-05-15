@@ -697,6 +697,9 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "rdagent_model_benchmark_fixture_boundary_rule": (
             "rdagent_qlib_serialized_model_benchmark_fixtures_must_use_datetime_instrument_prediction_score_semantics_not_graph_node_or_molecular_outputs"
         ),
+        "rdagent_model_benchmark_reference_code_boundary_rule": (
+            "rdagent_qlib_model_benchmark_reference_code_must_execute_tabular_or_timeseries_prediction_score_tensors_without_torch_geometric_or_graph_inputs"
+        ),
         "rdagent_supported_model_types": ["Tabular", "TimeSeries"],
         "rdagent_forbidden_model_types": ["Graph", "XGBoost"],
         "rdagent_implementation_prompt_paths": [
