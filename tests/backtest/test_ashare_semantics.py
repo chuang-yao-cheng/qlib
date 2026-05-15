@@ -21,6 +21,7 @@ REPORT_PATH = REPO_ROOT / "qlib/backtest/report.py"
 UTILS_PATH = REPO_ROOT / "qlib/backtest/utils.py"
 ALPHA_PATH = REPO_ROOT / "qlib/contrib/eva/alpha.py"
 EVALUATE_PATH = REPO_ROOT / "qlib/contrib/evaluate.py"
+HANDLER_PATH = REPO_ROOT / "qlib/contrib/data/handler.py"
 ORDER_GENERATOR_PATH = REPO_ROOT / "qlib/contrib/strategy/order_generator.py"
 SIGNAL_STRATEGY_PATH = REPO_ROOT / "qlib/contrib/strategy/signal_strategy.py"
 DATA_PATH = REPO_ROOT / "qlib/data/data.py"
@@ -349,7 +350,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, signal IC, portfolio risk analysis, benchmark return, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, signal IC, portfolio risk analysis, benchmark return, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -386,6 +387,9 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert "redefine_strategy_signal_to_order_generation" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    assert (
+        "redefine_supervised_label_expression_or_horizon" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
     assert "redefine_signal_ic_or_rank_ic_metrics" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_portfolio_risk_analysis_metrics" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert (
@@ -413,6 +417,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "trade_indicator_semantics" in contract["rdagent_must_not_redefine"]
     assert "executor_decision_semantics" in contract["rdagent_must_not_redefine"]
     assert "strategy_order_semantics" in contract["rdagent_must_not_redefine"]
+    assert "supervised_label_semantics" in contract["rdagent_must_not_redefine"]
     assert "signal_ic_semantics" in contract["rdagent_must_not_redefine"]
     assert "portfolio_risk_semantics" in contract["rdagent_must_not_redefine"]
     assert "benchmark_return_semantics" in contract["rdagent_must_not_redefine"]
@@ -463,6 +468,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "trade_indicator_semantics" in evidence["fingerprint_scope"]
     assert "executor_decision_semantics" in evidence["fingerprint_scope"]
     assert "strategy_order_semantics" in evidence["fingerprint_scope"]
+    assert "supervised_label_semantics" in evidence["fingerprint_scope"]
     assert "signal_ic_semantics" in evidence["fingerprint_scope"]
     assert "portfolio_risk_semantics" in evidence["fingerprint_scope"]
     assert "benchmark_return_semantics" in evidence["fingerprint_scope"]
@@ -767,6 +773,35 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "portfolio_boundary_rule": "signal_ic_metrics_are_prediction_label_quality_metrics_not_portfolio_return_metrics",
         "rdagent_rule": "describe_only_do_not_redefine_signal_ic_or_rank_ic_metrics",
     }
+    assert prompt_payload["supervised_label_semantics"] == {
+        "semantic_name": "a_share_supervised_forward_return_label",
+        "handler_authority": "qlib.contrib.data.handler.Alpha158",
+        "handler360_authority": "qlib.contrib.data.handler.Alpha360",
+        "loader_authority": "qlib.contrib.data.loader.Alpha158DL",
+        "processor_authority": "qlib.data.dataset.processor.DropnaLabel",
+        "label_group": "label",
+        "label_column": "LABEL0",
+        "label_expression": "Ref($close, -2)/Ref($close, -1) - 1",
+        "label_expression_source": "Alpha158.get_label_config_and_Alpha360.get_label_config",
+        "label_horizon_rule": "label_at_datetime_t_is_close_t_plus_2_over_close_t_plus_1_minus_one",
+        "prediction_execution_alignment_rule": (
+            "label_horizon_matches_strategy_previous_step_signal_execution_without_same_day_fill_assumption"
+        ),
+        "dropna_processor_rule": "DropnaLabel_removes_missing_LABEL0_rows_before_training_or_evaluation",
+        "template_binding_rule": "rdagent_templates_must_use_LABEL0_and_the_qlib_owned_label_expression",
+        "prompt_wording_rule": (
+            "describe_as_qlib_contract_defined_forward_return_label_not_undefined_next_several_days_return"
+        ),
+        "rdagent_template_paths": [
+            "rdagent/scenarios/qlib/experiment/factor_template/conf_baseline.yaml",
+            "rdagent/scenarios/qlib/experiment/factor_template/conf_combined_factors.yaml",
+            "rdagent/scenarios/qlib/experiment/factor_template/conf_combined_factors_sota_model.yaml",
+            "rdagent/scenarios/qlib/experiment/model_template/conf_baseline_factors_model.yaml",
+            "rdagent/scenarios/qlib/experiment/model_template/conf_sota_factors_model.yaml",
+        ],
+        "rdagent_prompt_paths": ["rdagent/scenarios/qlib/experiment/prompts.yaml"],
+        "rdagent_rule": "describe_only_do_not_redefine_supervised_label_expression_or_horizon",
+    }
     assert prompt_payload["portfolio_risk_semantics"] == {
         "semantic_name": "a_share_portfolio_risk_analysis",
         "record_authority": "qlib.workflow.record_temp.PortAnaRecord",
@@ -1035,6 +1070,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "trade_indicator_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "executor_decision_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "strategy_order_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "supervised_label_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "signal_ic_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "portfolio_risk_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "benchmark_return_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
@@ -1718,6 +1754,53 @@ def test_ashare_signal_ic_contract_matches_runtime_sources() -> None:
     assert 'method="spearman"' in alpha_source
     assert "return ic.dropna(), ric.dropna()" in alpha_source
     assert "return ic, ric" in alpha_source
+
+
+def test_ashare_supervised_label_contract_matches_runtime_sources() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    label_semantics = contract["prompt_projection_payload"]["supervised_label_semantics"]
+    handler_source = HANDLER_PATH.read_text()
+
+    assert label_semantics["semantic_name"] == "a_share_supervised_forward_return_label"
+    assert label_semantics["handler_authority"] == "qlib.contrib.data.handler.Alpha158"
+    assert label_semantics["handler360_authority"] == "qlib.contrib.data.handler.Alpha360"
+    assert label_semantics["loader_authority"] == "qlib.contrib.data.loader.Alpha158DL"
+    assert label_semantics["processor_authority"] == "qlib.data.dataset.processor.DropnaLabel"
+    assert label_semantics["label_group"] == "label"
+    assert label_semantics["label_column"] == "LABEL0"
+    assert label_semantics["label_expression"] == "Ref($close, -2)/Ref($close, -1) - 1"
+    assert label_semantics["label_expression_source"] == "Alpha158.get_label_config_and_Alpha360.get_label_config"
+    assert (
+        label_semantics["label_horizon_rule"] == "label_at_datetime_t_is_close_t_plus_2_over_close_t_plus_1_minus_one"
+    )
+    assert label_semantics["prediction_execution_alignment_rule"] == (
+        "label_horizon_matches_strategy_previous_step_signal_execution_without_same_day_fill_assumption"
+    )
+    assert (
+        label_semantics["dropna_processor_rule"]
+        == "DropnaLabel_removes_missing_LABEL0_rows_before_training_or_evaluation"
+    )
+    assert label_semantics["template_binding_rule"] == (
+        "rdagent_templates_must_use_LABEL0_and_the_qlib_owned_label_expression"
+    )
+    assert label_semantics["prompt_wording_rule"] == (
+        "describe_as_qlib_contract_defined_forward_return_label_not_undefined_next_several_days_return"
+    )
+    assert label_semantics["rdagent_template_paths"] == [
+        "rdagent/scenarios/qlib/experiment/factor_template/conf_baseline.yaml",
+        "rdagent/scenarios/qlib/experiment/factor_template/conf_combined_factors.yaml",
+        "rdagent/scenarios/qlib/experiment/factor_template/conf_combined_factors_sota_model.yaml",
+        "rdagent/scenarios/qlib/experiment/model_template/conf_baseline_factors_model.yaml",
+        "rdagent/scenarios/qlib/experiment/model_template/conf_sota_factors_model.yaml",
+    ]
+    assert label_semantics["rdagent_prompt_paths"] == ["rdagent/scenarios/qlib/experiment/prompts.yaml"]
+    assert label_semantics["rdagent_rule"] == "describe_only_do_not_redefine_supervised_label_expression_or_horizon"
+
+    assert 'def get_label_config(self):\n        return ["Ref($close, -2)/Ref($close, -1) - 1"], ["LABEL0"]' in (
+        handler_source
+    )
+    assert '{"class": "DropnaLabel"}' in handler_source
+    assert '"label": kwargs.pop("label", self.get_label_config())' in handler_source
 
 
 def test_ashare_portfolio_risk_contract_matches_runtime_sources() -> None:
