@@ -331,6 +331,18 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "runtime_authority": "qlib.backtest.position.AsharePosition",
             "rdagent_rule": "describe_only_do_not_redefine_position_or_settlement",
         },
+        "order_unit_semantics": {
+            "semantic_name": "a_share_round_lot",
+            "qlib_parameter": "trade_unit",
+            "trade_unit": market_semantics["trade_unit"],
+            "amount_unit": "share",
+            "buy_rounding_rule": "round_buy_amount_down_to_trade_unit_after_cash_and_volume_limits",
+            "sell_rounding_rule": "round_sell_amount_down_to_trade_unit_except_full_liquidation",
+            "full_liquidation_rule": "sell_all_remaining_position_without_round_lot_residual",
+            "factor_adjustment_rule": "apply_order_factor_when_trade_uses_unadjusted_prices",
+            "runtime_authority": "qlib.backtest.exchange.Exchange.round_amount_by_trade_unit",
+            "rdagent_rule": "describe_only_do_not_redefine_trade_unit_or_round_lot_policy",
+        },
     }
     return {
         "schema_version": schema_version,
@@ -384,6 +396,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "market_semantics.authoritative_limit_fields",
                 "price_limit_semantics",
                 "settlement_semantics",
+                "order_unit_semantics",
             ],
             "rdagent_prompt_forbidden_fields": [
                 "runtime_surfaces.policy_defaults",
