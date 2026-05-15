@@ -231,12 +231,37 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         ),
         "fail_closed_on_missing_contract": True,
     }
+    assert contract["semantic_boundary"]["authority_component"] == "qlib.backtest.ashare_semantics"
+    assert contract["semantic_boundary"]["consumer_component"] == "rdagent.scenarios.qlib.ashare_semantics"
+    assert "render_contract_projection_in_research_context" in contract["semantic_boundary"]["rdagent_allowed_actions"]
+    assert "redefine_cost_model_or_exchange_kwargs" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    assert set(contract["failure_semantics"].values()) == {"fail_closed"}
     assert "cost_model" in contract["rdagent_must_not_redefine"]
     assert contract["market_semantics"]["region"] == "cn"
     assert contract["market_semantics"]["trade_unit"] == 100
     assert contract["market_semantics"]["position_type"] == "AsharePosition"
     assert contract["runtime_surfaces"]["exchange_kwargs"] == ashare_semantics.joinquant_ashare_exchange_kwargs()
     assert contract["runtime_surfaces"]["backtest_kwargs"] == ashare_semantics.joinquant_ashare_backtest_kwargs()
+
+
+def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundary() -> None:
+    strict_contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    relaxed_contract = ashare_semantics.rdagent_ashare_semantic_contract(strict_price_limit=False)
+    evidence = strict_contract["evidence_contract"]
+
+    assert evidence["fingerprint_algorithm"] == "sha256_json_canonical_v1"
+    assert len(evidence["semantic_fingerprint"]) == 64
+    assert all(char in "0123456789abcdef" for char in evidence["semantic_fingerprint"])
+    assert (
+        evidence["semantic_fingerprint"]
+        == ashare_semantics.rdagent_ashare_semantic_contract()["evidence_contract"]["semantic_fingerprint"]
+    )
+    assert evidence["semantic_fingerprint"] != relaxed_contract["evidence_contract"]["semantic_fingerprint"]
+    assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
+    assert (
+        "runtime_surfaces.backtest_kwargs" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
+    )
+    assert "market_semantics.cost_model" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
 
 
 def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
@@ -248,6 +273,7 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
 
     assert round_tripped["runtime_surfaces"]["exchange_kwargs"]["ashare_price_limit_mode"] == "auto"
     assert round_tripped["market_semantics"]["cost_model"]["close_tax"] == pytest.approx(0.001)
+    assert round_tripped["failure_semantics"]["malformed_contract"] == "fail_closed"
 
 
 def test_exchange_joinquant_ashare_cost_helper_preserves_split_sell_tax() -> None:
