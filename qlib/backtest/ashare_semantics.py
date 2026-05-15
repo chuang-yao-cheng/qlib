@@ -245,6 +245,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
     }
     rdagent_must_not_redefine = [
         "instrument_identity_semantics",
+        "universe_membership_semantics",
         "trading_calendar_semantics",
         "transaction_cost_semantics",
         "suspension_tradability_semantics",
@@ -265,11 +266,27 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "board_threshold_fields",
         "cost_model",
     ]
+    universe_membership_semantics = {
+        "semantic_name": "a_share_universe_membership",
+        "membership_input": "Exchange.codes_or_D.instruments_market",
+        "instrument_provider_authority": "qlib.data.data.InstrumentProvider.list_instruments",
+        "local_provider_authority": "qlib.data.data.LocalInstrumentProvider.list_instruments",
+        "exchange_codes_authority": "qlib.backtest.exchange.Exchange.__init__",
+        "market_universe_rule": "string_codes_are_resolved_by_qlib_D_instruments",
+        "membership_window_rule": "instrument_start_end_spans_are_clipped_to_requested_calendar_window",
+        "calendar_boundary_rule": "start_end_defaults_and_membership_filtering_use_qlib_calendar_boundaries",
+        "filter_pipe_rule": "qlib_instrument_filter_pipe_is_applied_after_calendar_window_clipping",
+        "as_list_rule": "as_list_returns_only_instruments_with_nonempty_effective_spans",
+        "static_universe_rule": "rdagent_must_not_treat_all_a_or_index_universe_as_static_without_qlib_membership_spans",
+        "survivorship_rule": "membership_must_remain_point_in_time_by_qlib_instrument_spans_and_filters",
+        "rdagent_rule": "describe_only_do_not_redefine_universe_membership_or_filters",
+    }
     semantic_fingerprint = _stable_semantic_fingerprint(
         {
             "schema_version": schema_version,
             "market_semantics": market_semantics,
             "runtime_surfaces": runtime_surfaces,
+            "universe_membership_semantics": universe_membership_semantics,
             "rdagent_must_not_redefine": rdagent_must_not_redefine,
         }
     )
@@ -286,6 +303,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         ],
         "rdagent_forbidden_actions": [
             "redefine_instrument_identity_or_board_mapping",
+            "redefine_universe_membership_or_instrument_filtering",
             "redefine_trading_calendar_or_data_frequency",
             "redefine_transaction_cost_model",
             "redefine_suspension_or_tradability_rules",
@@ -366,6 +384,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             ),
             "rdagent_rule": "describe_only_do_not_redefine_instrument_or_board_identity",
         },
+        "universe_membership_semantics": universe_membership_semantics,
         "trading_calendar_semantics": {
             "semantic_name": "a_share_daily_trading_calendar",
             "calendar_frequency": "day",
@@ -520,7 +539,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "rdagent_role": "research_candidate_generation_context_consumer",
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
-                "but it must not redefine trading-calendar/data-frequency, trade unit, position, execution-price, price-adjustment, "
+                "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, price-adjustment, "
                 "suspension/tradability, price-limit, settlement, cash/shorting, liquidity/capacity, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
@@ -534,6 +553,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "schema_version",
                 "market_semantics",
                 "runtime_surfaces",
+                "universe_membership_semantics",
                 "rdagent_must_not_redefine",
             ],
             "rdagent_required_evidence_fields": [
@@ -562,6 +582,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "market_semantics.limit_threshold",
                 "market_semantics.authoritative_limit_fields",
                 "instrument_identity_semantics",
+                "universe_membership_semantics",
                 "trading_calendar_semantics",
                 "transaction_cost_semantics",
                 "suspension_tradability_semantics",
