@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "qlib/backtest/ashare_semantics.py"
+      - "qlib/backtest/account.py"
       - "qlib/backtest/exchange.py"
       - "qlib/backtest/position.py"
       - "qlib/data/data.py"
@@ -15,6 +16,7 @@ on:
     branches: [main]
     paths:
       - "qlib/backtest/ashare_semantics.py"
+      - "qlib/backtest/account.py"
       - "qlib/backtest/exchange.py"
       - "qlib/backtest/position.py"
       - "qlib/data/data.py"
@@ -78,6 +80,7 @@ jobs:
         run: |
           python -m py_compile \
             qlib/backtest/ashare_semantics.py \
+            qlib/backtest/account.py \
             qlib/backtest/exchange.py \
             qlib/backtest/position.py \
             qlib/data/data.py \
