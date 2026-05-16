@@ -849,6 +849,11 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "1day.excess_return_with_cost.annualized_return",
             "1day.excess_return_with_cost.max_drawdown",
         ],
+        "model_feedback_prompt_metric_paths": [
+            "IC",
+            "1day.excess_return_with_cost.annualized_return",
+            "1day.excess_return_with_cost.max_drawdown",
+        ],
         "bandit_metric_paths": [
             "IC",
             "ICIR",
@@ -884,6 +889,15 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         ),
         "feedback_comparison_invalid_failure": (
             "non_numeric_or_non_finite_feedback_comparison_metric_fails_closed_without_partial_comparison"
+        ),
+        "model_feedback_prompt_result_rule": (
+            "model_feedback_prompts_must_project_exact_qlib_feedback_metric_paths_before_prompt_rendering"
+        ),
+        "model_feedback_prompt_missing_failure": (
+            "missing_model_feedback_prompt_metric_path_fails_closed_without_partial_prompt_projection"
+        ),
+        "model_feedback_prompt_invalid_failure": (
+            "non_numeric_or_non_finite_model_feedback_prompt_metric_fails_closed_without_partial_prompt_projection"
         ),
         "derived_bandit_utility_name": "drawdown_adjusted_return",
         "derived_bandit_utility_rule": (
@@ -1124,6 +1138,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_feedback_metric_paths_or_label_derived_utility_as_qlib_metric",
             "bypass_feedback_primary_metric_with_llm_feedback_decision",
             "emit_partial_feedback_metric_comparison_or_use_non_qlib_metric_rows",
+            "render_model_feedback_prompt_with_raw_result_frame_or_partial_metric_slice",
             "redefine_benchmark_return_series_or_default_benchmark",
             "redefine_universe_benchmark_template_binding_or_cross_alias_market_and_benchmark",
             "redefine_strategy_benchmark_documentation_or_use_cross_market_index_example",
