@@ -376,7 +376,7 @@ class EnhancedIndexingStrategy(WeightStrategyBase):
     """Enhanced Indexing Strategy
 
     Enhanced indexing combines the arts of active management and passive management,
-    with the aim of outperforming a benchmark index (e.g., S&P 500) in terms of
+    with the aim of outperforming a benchmark index (e.g., CSI 300 / SH000300) in terms of
     portfolio return while controlling the risk exposure (a.k.a. tracking error).
 
     Users need to prepare their risk model data like below:

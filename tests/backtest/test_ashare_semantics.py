@@ -419,6 +419,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
+        "redefine_strategy_benchmark_documentation_or_use_cross_market_index_example"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
+    assert (
         "redefine_runtime_handoff_or_template_execution_kwargs"
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
@@ -463,6 +467,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "feedback_metric_semantics" in contract["rdagent_must_not_redefine"]
     assert "benchmark_return_semantics" in contract["rdagent_must_not_redefine"]
     assert "universe_benchmark_binding_semantics" in contract["rdagent_must_not_redefine"]
+    assert "strategy_benchmark_documentation_semantics" in contract["rdagent_must_not_redefine"]
     assert "runtime_handoff_template_binding_semantics" in contract["rdagent_must_not_redefine"]
     assert "research_data_source_semantics" in contract["rdagent_must_not_redefine"]
     assert "research_persona_semantics" in contract["rdagent_must_not_redefine"]
@@ -522,6 +527,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "feedback_metric_semantics" in evidence["fingerprint_scope"]
     assert "benchmark_return_semantics" in evidence["fingerprint_scope"]
     assert "universe_benchmark_binding_semantics" in evidence["fingerprint_scope"]
+    assert "strategy_benchmark_documentation_semantics" in evidence["fingerprint_scope"]
     assert "runtime_handoff_template_binding_semantics" in evidence["fingerprint_scope"]
     assert "research_data_source_semantics" in evidence["fingerprint_scope"]
     assert "research_persona_semantics" in evidence["fingerprint_scope"]
@@ -1195,6 +1201,19 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         ],
         "rdagent_rule": "bind_market_to_instruments_and_benchmark_to_backtest_without_cross_aliasing",
     }
+    assert prompt_payload["strategy_benchmark_documentation_semantics"] == {
+        "semantic_name": "a_share_enhanced_indexing_benchmark_documentation",
+        "strategy_authority": "qlib.contrib.strategy.signal_strategy.EnhancedIndexingStrategy",
+        "documentation_source_path": "qlib/contrib/strategy/signal_strategy.py",
+        "benchmark_context": "China A-share enhanced indexing",
+        "benchmark_example": "CSI 300",
+        "benchmark_code_example": "SH000300",
+        "forbidden_cross_market_examples": ["S&P 500", "SP500", "S&P500"],
+        "documentation_rule": (
+            "enhanced_indexing_strategy_examples_must_use_a_share_benchmark_context_not_us_index_examples"
+        ),
+        "rdagent_rule": "consume_a_share_strategy_benchmark_examples_without_cross_market_index_aliases",
+    }
     assert prompt_payload["suspension_tradability_semantics"] == {
         "semantic_name": "a_share_suspension_tradability",
         "suspension_indicator_field": "$close",
@@ -1406,6 +1425,10 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "benchmark_return_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert (
         "universe_benchmark_binding_semantics"
+        in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    )
+    assert (
+        "strategy_benchmark_documentation_semantics"
         in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
     assert (
@@ -2892,6 +2915,30 @@ def test_ashare_universe_benchmark_binding_contract_matches_config_constants() -
     assert binding["rdagent_rule"] == "bind_market_to_instruments_and_benchmark_to_backtest_without_cross_aliasing"
     assert 'CSI300_MARKET = "csi300"' in config_source
     assert 'CSI300_BENCH = "SH000300"' in config_source
+
+
+def test_ashare_strategy_benchmark_documentation_contract_bounds_enhanced_indexing_docstring() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    benchmark_doc = contract["prompt_projection_payload"]["strategy_benchmark_documentation_semantics"]
+    strategy_source = SIGNAL_STRATEGY_PATH.read_text()
+
+    assert benchmark_doc == {
+        "semantic_name": "a_share_enhanced_indexing_benchmark_documentation",
+        "strategy_authority": "qlib.contrib.strategy.signal_strategy.EnhancedIndexingStrategy",
+        "documentation_source_path": "qlib/contrib/strategy/signal_strategy.py",
+        "benchmark_context": "China A-share enhanced indexing",
+        "benchmark_example": "CSI 300",
+        "benchmark_code_example": "SH000300",
+        "forbidden_cross_market_examples": ["S&P 500", "SP500", "S&P500"],
+        "documentation_rule": (
+            "enhanced_indexing_strategy_examples_must_use_a_share_benchmark_context_not_us_index_examples"
+        ),
+        "rdagent_rule": "consume_a_share_strategy_benchmark_examples_without_cross_market_index_aliases",
+    }
+    assert "EnhancedIndexingStrategy" in strategy_source
+    assert "CSI 300 / SH000300" in strategy_source
+    for forbidden_example in benchmark_doc["forbidden_cross_market_examples"]:
+        assert forbidden_example not in strategy_source
 
 
 def test_ashare_research_data_source_contract_bounds_rd_agent_factor_prompts() -> None:
