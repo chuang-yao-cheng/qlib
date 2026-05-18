@@ -1,30 +1,7 @@
 name: Internal A-share semantics
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - "qlib/backtest/ashare_semantics.py"
-      - "qlib/backtest/__init__.py"
-      - "qlib/backtest/account.py"
-      - "qlib/backtest/decision.py"
-      - "qlib/backtest/exchange.py"
-      - "qlib/backtest/executor.py"
-      - "qlib/backtest/position.py"
-      - "qlib/backtest/report.py"
-      - "qlib/backtest/signal.py"
-      - "qlib/backtest/utils.py"
-      - "qlib/contrib/eva/alpha.py"
-      - "qlib/contrib/evaluate.py"
-      - "qlib/contrib/data/handler.py"
-      - "qlib/contrib/strategy/order_generator.py"
-      - "qlib/contrib/strategy/signal_strategy.py"
-      - "qlib/data/data.py"
-      - "qlib/strategy/base.py"
-      - "qlib/workflow/record_temp.py"
-      - "tests/backtest/test_ashare_semantics.py"
-      - "tests/backtest/test_ashare_t1_position.py"
-      - ".github/workflows/internal_ashare_semantics.yml"
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -56,7 +33,7 @@ concurrency:
 
 jobs:
   ashare-backtest-semantics:
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, macOS, ARM64, m4-stable, m4-32g, app020-ci]
     timeout-minutes: 20
     env:
       SETUPTOOLS_SCM_PRETEND_VERSION: "0.0.0"
