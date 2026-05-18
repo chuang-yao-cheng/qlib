@@ -4,6 +4,17 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
+    paths:
+      - "qlib/**"
+      - "tests/**"
+      - "examples/**"
+      - "scripts/**"
+      - "docs/**"
+      - "pyproject.toml"
+      - "setup.cfg"
+      - "setup.py"
+      - "requirements*.txt"
+      - "Makefile"
 
 concurrency:
   cancel-in-progress: true
