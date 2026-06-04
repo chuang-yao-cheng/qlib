@@ -1,13 +1,28 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as installed_distribution_version
 from pathlib import Path
 
 from setuptools_scm import get_version
 
-try:
-    from ._version import version as __version__
-except ImportError:
-    __version__ = get_version(root="..", relative_to=__file__)
+
+def _resolve_qlib_version():
+    try:
+        from ._version import version as generated_version
+
+        return generated_version
+    except ImportError:
+        try:
+            return get_version(root="..", relative_to=__file__)
+        except Exception:
+            try:
+                return installed_distribution_version("pyqlib")
+            except PackageNotFoundError:
+                return "0.0.0+source-projection"
+
+
+__version__ = _resolve_qlib_version()
 __version__bak = __version__  # This version is backup for QlibConfig.reset_qlib_version
 import logging
 import os
