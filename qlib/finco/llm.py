@@ -12,6 +12,18 @@ from qlib.config import DEFAULT_QLIB_DOT_PATH
 from pathlib import Path
 
 
+class _UnraisedOpenAIError(Exception):
+    """Sentinel exception used when an OpenAI SDK class is unavailable."""
+
+
+def _openai_exception(name: str):
+    exc = getattr(openai, name, None)
+    if exc is not None:
+        return exc
+    error_module = getattr(openai, "error", None)
+    return getattr(error_module, name, _UnraisedOpenAIError)
+
+
 class ConvManager:
     """
     This is a conversation manager of LLM
@@ -93,12 +105,20 @@ class APIBackend(SingletonBaseClass):
 
     def try_create_chat_completion(self, max_retry=10, **kwargs):
         max_retry = self.cfg.max_retry if self.cfg.max_retry is not None else max_retry
-        invalid_request_error = getattr(openai, "InvalidRequestError", openai.error.InvalidRequestError)
+        retry_errors = (
+            _openai_exception("RateLimitError"),
+            _openai_exception("Timeout"),
+            _openai_exception("APITimeoutError"),
+            _openai_exception("APIError"),
+        )
+        invalid_request_error = _openai_exception("InvalidRequestError")
+        if invalid_request_error is _UnraisedOpenAIError:
+            invalid_request_error = _openai_exception("BadRequestError")
         for i in range(max_retry):
             try:
                 response = self.create_chat_completion(**kwargs)
                 return response
-            except (openai.error.RateLimitError, openai.error.Timeout, openai.error.APIError) as e:
+            except retry_errors as e:
                 print(e)
                 print(f"Retrying {i+1}th time...")
                 time.sleep(1)
@@ -134,12 +154,21 @@ class APIBackend(SingletonBaseClass):
                 messages=messages,
                 max_tokens=self.cfg.max_tokens,
             )
+        elif hasattr(openai, "OpenAI"):
+            client = openai.OpenAI(api_key=self.cfg.openai_api_key)
+            response = client.chat.completions.create(
+                model=model or self.cfg.model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
         else:
             response = openai.ChatCompletion.create(
                 model=self.cfg.model,
                 messages=messages,
             )
-        resp = response.choices[0].message["content"]
+        message = response.choices[0].message
+        resp = message.content if hasattr(message, "content") else message["content"]
         if self.debug_mode:
             self.cache[key] = resp
             json.dump(self.cache, open(self.cache_file_location, "w"))

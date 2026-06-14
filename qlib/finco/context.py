@@ -48,7 +48,10 @@ class WorkflowContextManager:
 
     """All context are key value pairs which saves the input, output and status of the whole workflow"""
 
-    def __init__(self, workspace: Path) -> None:
+    def __init__(self, workspace: Optional[Path] = None) -> None:
+        if workspace is None:
+            workspace = Path.cwd()
+        workspace = Path(workspace)
         self.context = {}
         self.logger = FinCoLog()
         # this context is public

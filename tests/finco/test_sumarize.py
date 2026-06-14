@@ -1,6 +1,7 @@
 import unittest
 import os
 import shutil
+from pathlib import Path
 
 from dotenv import load_dotenv
 # pydantic support load_dotenv,   so load_dotenv will be deprecated in the future.
@@ -9,13 +10,14 @@ from qlib.finco.task import SummarizeTask
 from qlib.finco.workflow import WorkflowContextManager
 from qlib.finco.llm import APIBackend
 from qlib.finco.workflow import WorkflowManager
-from qlib.finco.knowledge import PracticeKnowledge, YamlStorage
+from qlib.finco.knowledge import KnowledgeBase, PracticeKnowledge, YamlStorage
 
 load_dotenv(verbose=True, override=True)
 
 
 class TestSummarize(unittest.TestCase):
 
+    @unittest.skipUnless(os.getenv("OPENAI_API_KEY"), "requires OPENAI_API_KEY")
     def test_chat(self):
         messages = [
             {
@@ -30,6 +32,7 @@ class TestSummarize(unittest.TestCase):
         response = APIBackend().try_create_chat_completion(messages=messages)
         print(response)
 
+    @unittest.skipUnless(os.getenv("OPENAI_API_KEY"), "requires OPENAI_API_KEY")
     def test_execution(self):
         task = SummarizeTask()
         context = WorkflowContextManager()
@@ -40,6 +43,7 @@ class TestSummarize(unittest.TestCase):
         resp = task.execute()
         print(resp)
 
+    @unittest.skipUnless(os.getenv("OPENAI_API_KEY"), "requires OPENAI_API_KEY")
     def test_generate_batch_result(self):
         wm = WorkflowManager()
 
@@ -63,7 +67,8 @@ class TestSummarize(unittest.TestCase):
         print(resp)
 
     def test_practice_knowledge(self):
-        pk = PracticeKnowledge(YamlStorage(path.joinpath(Path.cwd().joinpath("knowledge")/f"{self.KT_PRACTICE}/{YamlStorage.DEFAULT_NAME}")))
+        storage_path = Path.cwd() / "knowledge" / KnowledgeBase.KT_PRACTICE / YamlStorage.DEFAULT_NAME
+        pk = PracticeKnowledge(YamlStorage(storage_path))
         pk.add(["test1", "test2"])
 
 if __name__ == "__main__":

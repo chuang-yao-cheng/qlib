@@ -27,6 +27,21 @@ from qlib.finco.context import Design, Exp, WorkflowContextManager
 COMPONENT_LIST = ["Dataset", "DataHandler", "Model", "Record", "Strategy", "Backtest"]
 
 
+def _yaml_safe_load(stream):
+    return yaml.YAML(typ="safe", pure=True).load(stream)
+
+
+def _yaml_dump(data, stream=None):
+    yaml_writer = yaml.YAML()
+    yaml_writer.default_flow_style = False
+    if stream is None:
+        output = io.StringIO()
+        yaml_writer.dump(data, output)
+        return output.getvalue()
+    yaml_writer.dump(data, stream)
+    return None
+
+
 def _infer_experiment_count(experiments: str, default: int = 2) -> int:
     """Infer how many experiments the high-level plan described."""
     if not experiments:
@@ -447,13 +462,13 @@ class TrainTask(Task):
         workspace = self._context_manager.get_context("workspace")
         workflow_path = workspace.joinpath(workflow_config)
         with workflow_path.open() as f:
-            workflow = yaml.safe_load(f)
+            workflow = _yaml_safe_load(f)
         self._context_manager.set_context(f"workflow_{self._experiment_index}_yaml", workflow)
 
         confirm = self.interact(
             f"I select this workflow file: "
             f"{LogColors().render(workflow_path, color=LogColors.YELLOW, style=LogColors.BOLD)}\n"
-            f"{yaml.dump(workflow, default_flow_style=False)}"
+            f"{_yaml_dump(workflow)}"
             f"Are you sure you want to use? yes(Y/y), no(N/n):"
         )
         if confirm is False:
@@ -943,7 +958,7 @@ class ConfigActionTask(ActionTask):
         config = re.search(r"```yaml(.*)```", response, re.S).group(1)
 
         try:
-            yaml_config = yaml.safe_load(io.StringIO(config))
+            yaml_config = _yaml_safe_load(io.StringIO(config))
         except yaml.YAMLError as e:
             self.logger.info(f"Yaml file is not in the correct format: {e}")
             return_tasks = [
@@ -1056,7 +1071,7 @@ class ImplementActionTask(ActionTask):
 class YamlEditTask(ActionTask):
     """This yaml edit task will replace a specific component directly"""
 
-    def __init__(self, target_component: str):
+    def __init__(self, target_component: str, module_path: Optional[str] = None, updated_content: Optional[str] = None):
         """
 
         Parameters
@@ -1069,6 +1084,15 @@ class YamlEditTask(ActionTask):
             The content to replace the original content in `module_path`
         """
         super().__init__()
+        self.direct_edit_location = None
+        self.direct_edit_module_path = module_path
+        self.direct_edit_updated_content = updated_content
+        if module_path is not None or updated_content is not None:
+            if module_path is None or updated_content is None:
+                raise ValueError("module_path and updated_content must be provided together.")
+            self.direct_edit_location = Path(target_component)
+            return
+
         self.target_component = target_component
         self.target_config_key = {
             "Dataset": "dataset",
@@ -1078,6 +1102,17 @@ class YamlEditTask(ActionTask):
             "Record": "record",
             "Backtest": "backtest",
         }[self.target_component]
+
+    def replace_path_value(self, target_config, module_path: str, new_value):
+        current = target_config
+        parts = module_path.split(".")
+        for part in parts[:-1]:
+            current = current[int(part)] if isinstance(current, list) else current[part]
+        last_part = parts[-1]
+        if isinstance(current, list):
+            current[int(last_part)] = new_value
+        else:
+            current[last_part] = new_value
 
     def replace_key_value_recursive(self, target_dict, target_key, new_value):
         res = False
@@ -1094,12 +1129,21 @@ class YamlEditTask(ActionTask):
         return res
 
     def execute(self):
+        if self.direct_edit_location is not None:
+            with self.direct_edit_location.open("r") as f:
+                target_config = _yaml_safe_load(f)
+            update_config = _yaml_safe_load(io.StringIO(self.direct_edit_updated_content))
+            self.replace_path_value(target_config, self.direct_edit_module_path, update_config)
+            with self.direct_edit_location.open("w") as f:
+                _yaml_dump(target_config, f)
+            return []
+
         # 1) read original and new content
         self.original_config_location = Path(
             os.path.join(self._context_manager.get_context("workspace"), "workflow_config.yaml")
         )
         with self.original_config_location.open("r") as f:
-            target_config = yaml.safe_load(f)
+            target_config = _yaml_safe_load(f)
         update_config = self._context_manager.get_context(f"{self.target_component}_modified_config")
         if update_config is None:
             update_config = self._context_manager.get_context(f"{self.target_component}_config")
@@ -1143,7 +1187,7 @@ class YamlEditTask(ActionTask):
 
         # 4) save the config file
         with self.original_config_location.open("w") as f:
-            yaml.dump(target_config, f)
+            _yaml_dump(target_config, f)
 
         return []
 
@@ -1246,7 +1290,7 @@ user_intention: {user_intention},
 experiment_id: {exp_id},
 workflow yaml:
 ```yaml
-{yaml.safe_dump(workflow_yaml)},
+{_yaml_dump(workflow_yaml)},
 ```
 experiments description:
 {experiments_desc},
