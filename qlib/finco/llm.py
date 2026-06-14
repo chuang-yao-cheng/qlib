@@ -93,6 +93,7 @@ class APIBackend(SingletonBaseClass):
 
     def try_create_chat_completion(self, max_retry=10, **kwargs):
         max_retry = self.cfg.max_retry if self.cfg.max_retry is not None else max_retry
+        invalid_request_error = getattr(openai, "InvalidRequestError", openai.error.InvalidRequestError)
         for i in range(max_retry):
             try:
                 response = self.create_chat_completion(**kwargs)
@@ -102,6 +103,12 @@ class APIBackend(SingletonBaseClass):
                 print(f"Retrying {i+1}th time...")
                 time.sleep(1)
                 continue
+            except invalid_request_error as e:
+                print("Invalid request, will try to reduce the messages length and retry...")
+                if len(kwargs["messages"]) > 2:
+                    kwargs["messages"] = kwargs["messages"][:1] + kwargs["messages"][3:]
+                    continue
+                raise e
         raise Exception(f"Failed to create chat completion after {max_retry} retries.")
 
     def create_chat_completion(

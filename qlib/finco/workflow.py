@@ -189,7 +189,7 @@ class LearnManager:
         target_metrics = self.wm.context.get_context(f"high_level_metrics")
 
         [topic.summarize(self.knowledge_base.practice_knowledge.knowledge[-2:], user_intention, target, diffrence, target_metrics) for topic in self.topics]
-        [self.knowledge_base.practice_knowledge.add([f"practice_knowledge on {topic.name}:\,{topic.knowledge}"]) for topic in self.topics]
+        [self.knowledge_base.practice_knowledge.add([f"practice_knowledge on {topic.name}: {topic.knowledge}"]) for topic in self.topics]
         # knowledge_of_topics = [{topic.name: topic.knowledge} for topic in self.topics]
 
         # for task in task_finished:

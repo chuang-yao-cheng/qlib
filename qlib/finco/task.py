@@ -27,6 +27,29 @@ from qlib.finco.context import Design, Exp, WorkflowContextManager
 COMPONENT_LIST = ["Dataset", "DataHandler", "Model", "Record", "Strategy", "Backtest"]
 
 
+def _infer_experiment_count(experiments: str, default: int = 2) -> int:
+    """Infer how many experiments the high-level plan described."""
+    if not experiments:
+        return default
+
+    numbered_items = [
+        int(match.group(1))
+        for match in re.finditer(r"(?im)^\s*(?:experiment\s*)?(\d+)[\).:]\s+", experiments)
+    ]
+    return max(numbered_items) if numbered_items else default
+
+
+def _extract_experiment_description(experiments: str, experiment_id: int) -> Optional[str]:
+    pattern = re.compile(
+        rf"(?ims)(?:^|\n)\s*(?:experiment\s*)?{experiment_id}[\).:]\s*"
+        rf"(.*?)(?=\n\s*(?:experiment\s*)?{experiment_id + 1}[\).:]|\Z)"
+    )
+    match = pattern.search(experiments)
+    if match is None:
+        return None
+    return match.group(1).strip()
+
+
 class Task:
     """
     The user's intention, which was initially represented by a prompt, is achieved through a sequence of tasks.
@@ -293,7 +316,7 @@ class SLPlanTask(PlanTask):
         user_intention = self._context_manager.get_context("user_intention")
         experiments = self._context_manager.get_context("high_level_experiments")
 
-        experiment_count = 2 # TODO fix
+        experiment_count = _infer_experiment_count(experiments)
 
         infrastructure_knowledge = KnowledgeBase().query(
             knowledge_type=KnowledgeBase.KT_INFRASTRUCTURE, content=experiments
@@ -756,8 +779,6 @@ class HyperparameterFinetuneActionTask(ActionTask):
             self._context_manager.set_context(f"experiment_{experiment_id}_ddgda", ddgda_res)
             self._context_manager.set_context(f"experiment_{experiment_id}_config_finetune_reason", reason_res)
 
-        import shutil
-        shutil.copytree(r"/home/xuyang/workspace/qlib/qlib/finco/mlruns", r"/home/xuyang/workspace/qlib/qlib/finco/finco_workspace/mlruns")
         return return_tasks
 
 
