@@ -343,7 +343,7 @@ class SLPlanTask(PlanTask):
         response = APIBackend().build_messages_and_create_chat_completion(
             user_prompt, system_prompt, former_messages=former_messages
         )
-        self.save_chat_history_to_context_manager(user_prompt, system_prompt, self.system.render())
+        self.save_chat_history_to_context_manager(user_prompt, response, system_prompt)
         for i in range(1, experiment_count + 1):
             assert f"Experiment {i}" in response, f"The experiment {i} is not found in the response"
         self._context_manager.set_context("experiment_count", experiment_count)
@@ -358,8 +358,8 @@ class SLPlanTask(PlanTask):
         re_pattern = re_pattern + "Difference:(.*)"
         re_pattern = re.compile(re_pattern, re.S)
         # 1) CURD on the workspace
-        self._context_manager
         match_res = re.search(re_pattern, response)
+        assert match_res is not None, "The response is not in the correct experiment format"
         for experiment_id in range(1, experiment_count + 1):
             exp = Exp()
             for name in COMPONENT_LIST:
