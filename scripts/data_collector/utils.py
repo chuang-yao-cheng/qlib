@@ -191,11 +191,53 @@ def get_hs_stock_symbols() -> list:
         """
         import akshare as ak  # pylint: disable=C0415
 
-        stock_info_a_code_name_df = ak.stock_info_a_code_name()
-        stock_codes = stock_info_a_code_name_df["code"].tolist()
-        _symbols = [code for code in stock_codes if code and code.strip()]
+        try:
+            stock_info_a_code_name_df = ak.stock_info_a_code_name()
+            stock_codes = stock_info_a_code_name_df["code"].tolist()
+            _symbols = [str(code).strip() for code in stock_codes if code and str(code).strip()]
+        except Exception as e:
+            logger.warning(f"Failed to get HS stock symbols from akshare: {e}. Falling back to Eastmoney.")
+            _symbols = []
 
-        if len(_symbols) < 3900:
+        if len(_symbols) < MINIMUM_SYMBOLS_NUM:
+            base_url = "http://99.push2.eastmoney.com/api/qt/clist/get"
+            params = {
+                "pn": 1,
+                "pz": 100,
+                "po": 1,
+                "np": 1,
+                "fs": "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048",
+                "fields": "f12",
+            }
+            page = 1
+            while True:
+                params["pn"] = page
+                try:
+                    resp = requests.get(base_url, params=params, timeout=None)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    if not data or "data" not in data or not data["data"] or "diff" not in data["data"]:
+                        logger.warning(f"Invalid response structure on page {page}")
+                        break
+                    current_symbols = [_v["f12"] for _v in data["data"]["diff"]]
+                    if not current_symbols:
+                        logger.info(f"Last page reached: {page - 1}")
+                        break
+                    _symbols.extend(current_symbols)
+                    logger.info(
+                        f"Page {page}: fetch {len(current_symbols)} stocks:[{current_symbols[0]} ... {current_symbols[-1]}]"
+                    )
+                    page += 1
+                    time.sleep(0.5)
+                except requests.exceptions.HTTPError as e:
+                    raise requests.exceptions.HTTPError(
+                        f"Request to {base_url} failed with status code {resp.status_code}"
+                    ) from e
+                except Exception:
+                    logger.warning("An error occurred while extracting data from the response.")
+                    raise
+
+        if len(_symbols) < MINIMUM_SYMBOLS_NUM:
             raise ValueError("The complete list of stocks is not available.")
 
         # Add suffix after the stock code to conform to yahooquery standard, otherwise the data will not be fetched.
