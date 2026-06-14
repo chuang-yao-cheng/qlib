@@ -360,7 +360,9 @@ class MLflowExpManager(ExpManager):
                 raise ExpAlreadyExistError() from e
             raise e
 
-        return MLflowExperiment(experiment_id, experiment_name, self.uri)
+        experiment = MLflowExperiment(experiment_id, experiment_name, self.uri)
+        experiment._default_name = self._default_exp_name
+        return experiment
 
     def _get_exp(self, experiment_id=None, experiment_name=None):
         """
