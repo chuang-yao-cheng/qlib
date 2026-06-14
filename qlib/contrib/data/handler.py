@@ -71,7 +71,7 @@ class Alpha360(DataHandlerLP):
             "class": "QlibDataLoader",
             "kwargs": {
                 "config": {
-                    "feature": Alpha360DL.get_feature_config(),
+                    "feature": self.get_feature_config(),
                     "label": kwargs.pop("label", self.get_label_config()),
                 },
                 "filter_pipe": filter_pipe,
@@ -94,6 +94,9 @@ class Alpha360(DataHandlerLP):
 
     def get_label_config(self):
         return ["Ref($close, -2)/Ref($close, -1) - 1"], ["LABEL0"]
+
+    def get_feature_config(self):
+        return Alpha360DL.get_feature_config()
 
 
 class Alpha360vwap(Alpha360):
