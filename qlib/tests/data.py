@@ -176,7 +176,7 @@ class GetData:
         target_dir: str
             data save directory
         name: str
-            dataset name, value from [qlib_data], by default qlib_data.
+            dataset name, value from [qlib_data, qlib_data_simple], by default qlib_data.
         version: str
             data version, value from [v1, ...], by default None(use script to specify version)
         interval: str
