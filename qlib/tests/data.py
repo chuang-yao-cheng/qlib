@@ -39,7 +39,8 @@ class GetData:
         ----------
         file_name: str
             The name of the file to be downloaded.
-            The file name can be accompanied by a version number, (e.g.: v2/qlib_data_cn_1d_latest.zip),
+            The file name can be accompanied by a version number,
+            (e.g.: v2/qlib_data_cn_1d_latest.zip or v2/qlib_data_simple_cn_1d_latest.zip),
             if no version number is attached, it will be downloaded from v0 by default.
         """
         return f"{self.REMOTE_URL}/{file_name}" if "/" in file_name else f"{self.REMOTE_URL}/v0/{file_name}"
