@@ -282,11 +282,13 @@ class HighLevelPlanTask(PlanTask):
 
         self._context_manager.set_context("high_level_workflow", res.group(1).strip())
 
-        self._context_manager.set_context("high_level_experiments", res.group(2).strip())
-        experiment_description_search_res = re.search("1.(.*)2.(.*)", res.group(2).strip(), re.S)
-        assert experiment_description_search_res is not None, "The experiment description is not in the correct format"
-        self._context_manager.set_context("experiments_desc_1", experiment_description_search_res.group(1).strip())
-        self._context_manager.set_context("experiments_desc_2", experiment_description_search_res.group(2).strip())
+        experiments = res.group(2).strip()
+        self._context_manager.set_context("high_level_experiments", experiments)
+        experiment_count = _infer_experiment_count(experiments)
+        for experiment_id in range(1, experiment_count + 1):
+            experiment_description = _extract_experiment_description(experiments, experiment_id)
+            assert experiment_description is not None, "The experiment description is not in the correct format"
+            self._context_manager.set_context(f"experiments_desc_{experiment_id}", experiment_description)
 
         self._context_manager.set_context("high_level_metrics", res.group(3).strip())
 
@@ -692,7 +694,7 @@ class ConfigSearchTask(ActionTask):
         ]
         for experiment_id in range(1, experiment_count + 1):
             self._context_manager.set_context(f"experiment_{experiment_id}_template_config", config_search_result.group(experiment_id).strip('\n'))
-            config_location = benchmarks_root_path / config_search_result.group(experiment_id).strip(" \n")
+            config_location = self.conf_path / config_search_result.group(experiment_id).strip(" \n")
             return_task.append(CMDTask(f"copy file in {config_location} to {self._context_manager.get_context('workspace')} and rename to experiment_{experiment_id}.yaml"))
         return return_task
 
