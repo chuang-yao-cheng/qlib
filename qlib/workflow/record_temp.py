@@ -26,9 +26,11 @@ logger = get_module_logger("workflow", logging.INFO)
 
 
 def _wait_recorder_async_log(recorder):
+    """Wait for pending MLflow async writes before reading recorder state."""
     async_log = getattr(recorder, "async_log", None)
-    if async_log is not None:
-        async_log.wait()
+    wait = getattr(async_log, "wait", None)
+    if callable(wait):
+        wait()
 
 
 class RecordTemp:

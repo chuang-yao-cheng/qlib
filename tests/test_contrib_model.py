@@ -4,16 +4,15 @@
 import unittest
 
 from qlib.contrib.model import all_model_classes
+import qlib.contrib.model as model_pkg
 
 
 class TestAllFlow(unittest.TestCase):
     def test_0_initialize(self):
-        num = 0
-        for model_class in all_model_classes:
-            if model_class is not None:
-                model = model_class()
-                num += 1
-        print("There are {:}/{:} valid models in total.".format(num, len(all_model_classes)))
+        names = [model_class.__name__ for model_class in all_model_classes]
+        self.assertIn("LGBModel", names)
+        self.assertIn("DNNModelPytorch", names)
+        self.assertIsNotNone(model_pkg.LGBModel)
 
 
 def suite():
