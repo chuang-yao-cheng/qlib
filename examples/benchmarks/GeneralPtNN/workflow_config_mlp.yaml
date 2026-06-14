@@ -60,7 +60,6 @@ task:
         class: GeneralPTNN
         module_path: qlib.contrib.model.pytorch_general_nn
         kwargs:
-            # FIXME: wrong parameters.
             lr: 2e-3
             batch_size: 8192
             loss: mse
