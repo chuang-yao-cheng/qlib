@@ -47,6 +47,10 @@ class GeneralPTNN(Model):
         optimizer name
     GPU : str
         the GPU ID(s) used for training
+    device : str
+        explicit torch device selector. Use "auto" to prefer CUDA, then Apple
+        MPS, then CPU. Explicit "cuda", "cuda:N", or "mps" requests raise when
+        the requested accelerator is unavailable.
     """
 
     def __init__(
@@ -61,6 +65,7 @@ class GeneralPTNN(Model):
         optimizer="adam",
         n_jobs=10,
         GPU=0,
+        device=None,
         seed=None,
         pt_model_uri="qlib.contrib.model.pytorch_gru_ts.GRUModel",
         pt_model_kwargs={
@@ -83,7 +88,8 @@ class GeneralPTNN(Model):
         self.optimizer = optimizer.lower()
         self.loss = loss
         self.weight_decay = weight_decay
-        self.device = torch.device("cuda:%d" % (GPU) if torch.cuda.is_available() and GPU >= 0 else "cpu")
+        self.requested_device = device
+        self.device = _resolve_torch_device(device, GPU)
         self.n_jobs = n_jobs
         self.seed = seed
 
@@ -99,6 +105,7 @@ class GeneralPTNN(Model):
             "\nearly_stop : {}"
             "\noptimizer : {}"
             "\nloss_type : {}"
+            "\nrequested_device : {}"
             "\ndevice : {}"
             "\nn_jobs : {}"
             "\nuse_GPU : {}"
@@ -113,6 +120,7 @@ class GeneralPTNN(Model):
                 early_stop,
                 optimizer.lower(),
                 loss,
+                self.requested_device,
                 self.device,
                 n_jobs,
                 self.use_gpu,
@@ -189,12 +197,12 @@ class GeneralPTNN(Model):
         """
         if data.dim() == 3:
             # it is a time series dataset
-            feature = data[:, :, 0:-1].to(self.device)
-            label = data[:, -1, -1].to(self.device)
+            feature = data[:, :, 0:-1].to(device=self.device, dtype=torch.float32)
+            label = data[:, -1, -1].to(device=self.device, dtype=torch.float32)
         elif data.dim() == 2:
             # it is a tabular dataset
-            feature = data[:, 0:-1].to(self.device)
-            label = data[:, -1].to(self.device)
+            feature = data[:, 0:-1].to(device=self.device, dtype=torch.float32)
+            label = data[:, -1].to(device=self.device, dtype=torch.float32)
         else:
             raise ValueError("Unsupported data shape.")
         return feature, label
@@ -205,8 +213,12 @@ class GeneralPTNN(Model):
         for data, weight in data_loader:
             feature, label = self._get_fl(data)
 
-            pred = self.dnn_model(feature.float())
-            loss = self.loss_fn(pred, label, weight.to(self.device))
+            pred = self.dnn_model(feature)
+            loss = self.loss_fn(
+                pred,
+                label,
+                weight.to(device=self.device, dtype=torch.float32),
+            )
 
             self.train_optimizer.zero_grad()
             loss.backward()
@@ -223,8 +235,12 @@ class GeneralPTNN(Model):
             feature, label = self._get_fl(data)
 
             with torch.no_grad():
-                pred = self.dnn_model(feature.float())
-                loss = self.loss_fn(pred, label, weight.to(self.device))
+                pred = self.dnn_model(feature)
+                loss = self.loss_fn(
+                    pred,
+                    label,
+                    weight.to(device=self.device, dtype=torch.float32),
+                )
                 losses.append(loss.item())
 
                 score = self.metric_fn(pred, label)
@@ -328,7 +344,7 @@ class GeneralPTNN(Model):
         self.dnn_model.load_state_dict(best_param)
         torch.save(best_param, save_path)
 
-        if self.use_gpu:
+        if self.device.type == "cuda":
             torch.cuda.empty_cache()
 
     def predict(
@@ -357,10 +373,8 @@ class GeneralPTNN(Model):
 
         for data in test_loader:
             feature, _ = self._get_fl(data)
-            feature = feature.to(self.device)
-
             with torch.no_grad():
-                pred = self.dnn_model(feature.float()).detach().cpu().numpy()
+                pred = self.dnn_model(feature).detach().cpu().numpy()
 
             preds.append(pred)
 
@@ -369,3 +383,56 @@ class GeneralPTNN(Model):
             preds_concat = preds_concat.ravel()
 
         return pd.Series(preds_concat, index=index)
+
+
+def _resolve_torch_device(requested_device, GPU) -> torch.device:
+    if requested_device is None:
+        return torch.device(
+            "cuda:%d" % (GPU) if torch.cuda.is_available() and GPU >= 0 else "cpu"
+        )
+
+    normalized = str(requested_device).strip().lower()
+    if normalized == "":
+        return _resolve_torch_device(None, GPU)
+
+    if normalized == "auto":
+        if torch.cuda.is_available() and GPU >= 0:
+            return torch.device("cuda:%d" % GPU)
+        if _mps_is_available():
+            return torch.device("mps")
+        return torch.device("cpu")
+
+    if normalized == "cpu":
+        return torch.device("cpu")
+
+    if normalized == "mps":
+        if not _mps_is_available():
+            raise RuntimeError(
+                "GeneralPTNN requested device 'mps', but torch MPS is unavailable"
+            )
+        return torch.device("mps")
+
+    if normalized == "cuda":
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "GeneralPTNN requested device 'cuda', but CUDA is unavailable"
+            )
+        cuda_index = GPU if GPU >= 0 else 0
+        return torch.device("cuda:%d" % cuda_index)
+
+    if normalized.startswith("cuda:"):
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                f"GeneralPTNN requested device {requested_device!r}, "
+                "but CUDA is unavailable"
+            )
+        return torch.device(normalized)
+
+    raise ValueError(
+        "GeneralPTNN device must be one of: auto, cpu, mps, cuda, cuda:<index>"
+    )
+
+
+def _mps_is_available() -> bool:
+    mps_backend = getattr(torch.backends, "mps", None)
+    return bool(mps_backend is not None and mps_backend.is_available())

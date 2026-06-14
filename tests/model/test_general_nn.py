@@ -1,4 +1,8 @@
 import unittest
+from unittest.mock import patch
+
+import torch
+
 from qlib.tests import TestAutoData
 
 
@@ -74,6 +78,46 @@ class TestNN(TestAutoData):
         for ds, model in list(zip((tsds, tbds), model_l)):
             model.fit(ds)  # It works
             model.predict(ds)  # It works
+
+
+class TestGeneralPTNNDeviceSelection(unittest.TestCase):
+    def test_explicit_cpu_device(self):
+        from qlib.contrib.model.pytorch_general_nn import (
+            GeneralPTNN,
+            _resolve_torch_device,
+        )
+
+        self.assertEqual(_resolve_torch_device("cpu", 0), torch.device("cpu"))
+        model = GeneralPTNN(
+            n_epochs=1,
+            batch_size=8,
+            n_jobs=0,
+            device="cpu",
+            pt_model_uri="qlib.contrib.model.pytorch_nn.Net",
+            pt_model_kwargs={"input_dim": 3},
+        )
+        self.assertEqual(model.device, torch.device("cpu"))
+
+    def test_auto_device_prefers_mps_after_cuda(self):
+        from qlib.contrib.model import pytorch_general_nn
+
+        with patch.object(
+            pytorch_general_nn.torch.cuda, "is_available", return_value=False
+        ), patch.object(
+            pytorch_general_nn.torch.backends.mps, "is_available", return_value=True
+        ):
+            device = pytorch_general_nn._resolve_torch_device("auto", 0)
+
+        self.assertEqual(device, torch.device("mps"))
+
+    def test_explicit_mps_device_fails_when_unavailable(self):
+        from qlib.contrib.model import pytorch_general_nn
+
+        with patch.object(
+            pytorch_general_nn.torch.backends.mps, "is_available", return_value=False
+        ):
+            with self.assertRaisesRegex(RuntimeError, "mps"):
+                pytorch_general_nn._resolve_torch_device("mps", 0)
 
 
 if __name__ == "__main__":
