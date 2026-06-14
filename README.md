@@ -526,6 +526,12 @@ Based on learning paradigms, they can be categorized into reinforcement learning
 - For supervised learning, the detailed docs can be found [here](https://qlib.readthedocs.io/en/latest/component/model.html).
 - For reinforcement learning, the detailed docs can be found [here](https://qlib.readthedocs.io/en/latest/component/rl.html). Qlib's RL learning framework leverages `Execution Env` in `Workflow` layer to create environments.  It's worth noting that `NestedExecutor` is supported as well. This empowers users to optimize different level of strategies/models/agents together (e.g. optimizing an order execution strategy for a specific portfolio management strategy).
 
+# High-Frequency Execution
+
+High-frequency order execution is a fundamental problem in quantitative finance. It aims at fulfilling a specific trading order, either liquidation or acquirement, for a given instrument. AI can mine patterns from high-frequency market data and help traders make better decisions during order execution.
+
+- [Universal Trading for Order Execution with Oracle Policy Distillation](examples/trade/)
+
 
 # More About Qlib
 If you want to have a quick glance at the most frequently used components of qlib, you can try notebooks [here](examples/tutorial/).

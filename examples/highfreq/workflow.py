@@ -1,7 +1,10 @@
 #  Copyright (c) Microsoft Corporation.
 #  Licensed under the MIT License.
 
+import os
+
 import fire
+import pandas as pd
 
 import qlib
 from qlib.constant import REG_CN
@@ -169,6 +172,29 @@ class HighfreqWorkflow:
 
         print(xtest, backtest_test)
         return
+
+    def get_high_freq_data(self, data_path):
+        """export normalized feature and backtest data by instrument"""
+        self._init_qlib()
+        self._prepare_calender_cache()
+
+        dataset = init_instance_by_config(self.task["dataset"])
+        xtrain, xtest = dataset.prepare(["train", "test"])
+        normed_feature = pd.concat([xtrain, xtest]).sort_index()
+        feature_path = os.path.join(data_path, "normed_feature")
+        os.makedirs(feature_path, exist_ok=True)
+        for instrument, frame in normed_feature.groupby("instrument"):
+            frame.to_pickle(os.path.join(feature_path, f"{instrument}.pkl"))
+
+        dataset_backtest = init_instance_by_config(self.task["dataset_backtest"])
+        backtest_train, backtest_test = dataset_backtest.prepare(["train", "test"])
+        backtest = pd.concat([backtest_train, backtest_test]).sort_index()
+        backtest["date"] = backtest.index.map(lambda x: x[1].date())
+        backtest.set_index("date", append=True, drop=True, inplace=True)
+        backtest_path = os.path.join(data_path, "backtest")
+        os.makedirs(backtest_path, exist_ok=True)
+        for instrument, frame in backtest.groupby("instrument"):
+            frame.to_pickle(os.path.join(backtest_path, f"{instrument}.pkl.backtest"))
 
 
 if __name__ == "__main__":
