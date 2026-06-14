@@ -688,6 +688,7 @@ class ConfigSearchTask(ActionTask):
         config_search_pattern = re.compile(config_search_pattern, re.S)
 
         config_search_result = config_search_pattern.search(response)
+        assert config_search_result is not None, "The config search response is not in the correct experiment format"
 
         return_task = [
             CMDTask(f"make a directory in the {self._context_manager.get_context('workspace')}"),
@@ -764,6 +765,7 @@ class HyperparameterFinetuneActionTask(ActionTask):
         config_search_pattern = re.compile(config_search_pattern, re.S)
 
         config_search_result = re.search(config_search_pattern, response)
+        assert config_search_result is not None, "The finetune response is not in the correct experiment format"
         return_tasks = []
         for experiment_id in range(1, experiment_count + 1):
             rolling_res = config_search_result.group((experiment_id - 1) * 4 + 2).strip("\n")
