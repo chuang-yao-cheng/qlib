@@ -12,6 +12,7 @@ import pandas as pd
 from qlib.backtest import Exchange, Order
 from qlib.backtest.decision import TradeRange, TradeRangeByTime
 from qlib.constant import EPS_T
+from qlib.data.dataset import DatasetH
 from qlib.utils.pickle_utils import restricted_pickle_load
 
 from .base import BaseIntradayBacktestData, BaseIntradayProcessedData, ProcessedDataProvider
@@ -141,6 +142,16 @@ def load_backtest_data(
     return backtest_data
 
 
+@cachetools.cached(  # type: ignore
+    cache=cachetools.LRUCache(1000),
+    key=lambda path: path,
+)
+def _load_handler_pickle(path: str) -> DatasetH:
+    with open(path, "rb") as fstream:
+        obj = restricted_pickle_load(fstream)
+    return obj
+
+
 class HandlerIntradayProcessedData(BaseIntradayProcessedData):
     """Subclass of IntradayProcessedData. Used to handle handler (bin format) style data."""
 
@@ -162,8 +173,7 @@ class HandlerIntradayProcessedData(BaseIntradayProcessedData):
 
         path = os.path.join(data_dir, "backtest" if backtest else "feature", f"{stock_id}.pkl")
         start_time, end_time = date.replace(hour=0, minute=0, second=0), date.replace(hour=23, minute=59, second=59)
-        with open(path, "rb") as fstream:
-            dataset = restricted_pickle_load(fstream)
+        dataset = _load_handler_pickle(path)
         data = dataset.handler.fetch(pd.IndexSlice[stock_id, start_time:end_time], level=None)
 
         if index_only:
@@ -178,15 +188,6 @@ class HandlerIntradayProcessedData(BaseIntradayProcessedData):
             return f"{self.__class__.__name__}({self.today}, {self.yesterday})"
 
 
-@cachetools.cached(  # type: ignore
-    cache=cachetools.LRUCache(100),  # 100 * 50K = 5MB
-    key=lambda data_dir, stock_id, date, feature_columns_today, feature_columns_yesterday, backtest, index_only: (
-        stock_id,
-        date,
-        backtest,
-        index_only,
-    ),
-)
 def load_handler_intraday_processed_data(
     data_dir: Path,
     stock_id: str,
@@ -197,7 +198,13 @@ def load_handler_intraday_processed_data(
     index_only: bool = False,
 ) -> HandlerIntradayProcessedData:
     return HandlerIntradayProcessedData(
-        data_dir, stock_id, date, feature_columns_today, feature_columns_yesterday, backtest, index_only
+        data_dir,
+        stock_id,
+        date,
+        feature_columns_today,
+        feature_columns_yesterday,
+        backtest,
+        index_only,
     )
 
 
@@ -230,5 +237,4 @@ class HandlerProcessedDataProvider(ProcessedDataProvider):
             self.feature_columns_today,
             self.feature_columns_yesterday,
             backtest=self.backtest,
-            index_only=False,
         )

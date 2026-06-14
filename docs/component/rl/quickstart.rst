@@ -160,7 +160,7 @@ With the above config files, you can start training the agent by the following c
 
 .. code-block:: console
 
-    $ python -m qlib.rl.contrib.train_onpolicy.py --config_path train_config.yml
+    $ python -m qlib.rl.contrib.train --config_path train_config.yml
 
 After the training, you can backtest with the following command:
 

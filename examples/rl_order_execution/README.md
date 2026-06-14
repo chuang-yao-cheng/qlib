@@ -43,7 +43,7 @@ The main differece between these two methods is their reward functions. Please s
 Take OPDS as an example, to run the training workflow, run:
 
 ```
-python -m qlib.rl.contrib.train_onpolicy --config_path exp_configs/train_opds.yml --run_backtest
+python -m qlib.rl.contrib.train --config_path exp_configs/train_opds.yml --run_backtest
 ```
 
 Metrics, logs, and checkpoints will be stored under `outputs/opds` (configured by `exp_configs/train_opds.yml`). 
@@ -73,7 +73,7 @@ As a result, the amount of an order that is actually executed during backtesting
 If you would like to obtain results that are exactly the same as those obtained during testing in the training pipeline, you could run training pipeline with only backtest phrase.
 In order to do this:
 - Modify the training config. Add the path of the checkpoint you want to use (see following for an example).
-- Run `python -m qlib.rl.contrib.train_onpolicy --config_path PATH/TO/CONFIG --run_backtest --no_training`
+- Run `python -m qlib.rl.contrib.train --config_path PATH/TO/CONFIG --run_backtest --no_training`
 
 ```yaml
 ...

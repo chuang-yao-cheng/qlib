@@ -12,7 +12,8 @@ from pathlib import Path
 from qlib.backtest.decision import Order, OrderDir
 from qlib.constant import EPS, EPS_T, float_or_ndarray
 from qlib.rl.data.base import BaseIntradayBacktestData
-from qlib.rl.data.native import DataframeIntradayBacktestData, load_handler_intraday_processed_data
+from qlib.rl.data.native import DataframeIntradayBacktestData
+from qlib.rl.data.pickle_styled import load_pickle_intraday_processed_data
 from qlib.rl.data.pickle_styled import load_simple_intraday_backtest_data
 from qlib.rl.simulator import Simulator
 from qlib.rl.utils import LogLevel
@@ -42,8 +43,6 @@ class SingleAssetOrderExecutionSimple(Simulator[Order, SAOEState, float]):
         Path to load backtest data.
     feature_columns_today
         Columns of today's feature.
-    feature_columns_yesterday
-        Columns of yesterday's feature.
     data_granularity
         Number of ticks between consecutive data entries.
     ticks_per_step
@@ -80,7 +79,6 @@ class SingleAssetOrderExecutionSimple(Simulator[Order, SAOEState, float]):
         order: Order,
         data_dir: Path,
         feature_columns_today: List[str] = [],
-        feature_columns_yesterday: List[str] = [],
         data_granularity: int = 1,
         ticks_per_step: int = 30,
         vol_threshold: Optional[float] = None,
@@ -92,7 +90,6 @@ class SingleAssetOrderExecutionSimple(Simulator[Order, SAOEState, float]):
         self.order = order
         self.data_dir = data_dir
         self.feature_columns_today = feature_columns_today
-        self.feature_columns_yesterday = feature_columns_yesterday
         self.ticks_per_step: int = ticks_per_step // data_granularity
         self.vol_threshold = vol_threshold
 
@@ -122,14 +119,13 @@ class SingleAssetOrderExecutionSimple(Simulator[Order, SAOEState, float]):
 
     def get_backtest_data(self) -> BaseIntradayBacktestData:
         try:
-            data = load_handler_intraday_processed_data(
+            data = load_pickle_intraday_processed_data(
                 data_dir=self.data_dir,
                 stock_id=self.order.stock_id,
                 date=pd.Timestamp(self.order.start_time.date()),
                 feature_columns_today=self.feature_columns_today,
-                feature_columns_yesterday=self.feature_columns_yesterday,
+                feature_columns_yesterday=[],
                 backtest=True,
-                index_only=False,
             )
             return DataframeIntradayBacktestData(data.today)
         except (AttributeError, FileNotFoundError):
