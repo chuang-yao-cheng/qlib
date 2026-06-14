@@ -12,7 +12,6 @@ import functools
 from pathlib import Path
 from typing import Iterable, Tuple, List
 
-import akshare as ak
 import numpy as np
 import pandas as pd
 from loguru import logger
