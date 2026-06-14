@@ -98,6 +98,7 @@ package = [
 test = [
   "yahooquery",
   "baostock",
+  "akshare",
 ]
 analysis = [
   "plotly",
