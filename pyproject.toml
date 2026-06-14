@@ -107,6 +107,15 @@ client = [
   "python-socketio<6",
   "tables",
 ]
+finco = [
+  "openai",
+  "pydantic",
+  "pydantic-settings",
+  "python-dotenv",
+  "fuzzywuzzy",
+  "python-Levenshtein",
+  "jinja2",
+]
 
 # In the process of releasing a new version, when checking the manylinux package with twine, an error is reported:
 # InvalidDistribution: Invalid distribution metadata: unrecognized or malformed field 'license-file'
