@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from typing import Union
 import copy
+import os
 
 import torch
 import torch.optim as optim
@@ -28,6 +29,103 @@ from ...utils import (
 from ...log import get_module_logger
 
 from ...model.utils import ConcatDataset
+
+
+APP020_MODEL_SCREEN_MAX_EPOCHS_ENV_KEY = "APP020_RD_AGENT_MODEL_SCREEN_MAX_EPOCHS"
+APP020_MODEL_SCREEN_MAX_TRAIN_SAMPLES_ENV_KEY = (
+    "APP020_RD_AGENT_MODEL_SCREEN_MAX_TRAIN_SAMPLES"
+)
+APP020_MODEL_SCREEN_MAX_VALID_SAMPLES_ENV_KEY = (
+    "APP020_RD_AGENT_MODEL_SCREEN_MAX_VALID_SAMPLES"
+)
+
+
+def _positive_int_env(env_key):
+    value = os.getenv(env_key)
+    if value in (None, ""):
+        return None
+    try:
+        normalized = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{env_key} must be a positive integer") from exc
+    if normalized <= 0:
+        raise ValueError(f"{env_key} must be a positive integer")
+    return normalized
+
+
+def _positive_int_value(value, field_name):
+    try:
+        normalized = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} must be a positive integer") from exc
+    if normalized <= 0:
+        raise ValueError(f"{field_name} must be a positive integer")
+    return normalized
+
+
+def _apply_app020_model_screen_epoch_cap(n_epochs, early_stop, logger):
+    max_epochs = _positive_int_env(APP020_MODEL_SCREEN_MAX_EPOCHS_ENV_KEY)
+    normalized_epochs = _positive_int_value(n_epochs, "n_epochs")
+    normalized_early_stop = _positive_int_value(early_stop, "early_stop")
+    if max_epochs is None:
+        return normalized_epochs, normalized_early_stop
+
+    capped_epochs = min(normalized_epochs, max_epochs)
+    capped_early_stop = min(normalized_early_stop, max_epochs)
+    if capped_epochs != normalized_epochs or capped_early_stop != normalized_early_stop:
+        logger.info(
+            "APP020 model screen epoch cap applied: n_epochs %s -> %s, "
+            "early_stop %s -> %s",
+            normalized_epochs,
+            capped_epochs,
+            normalized_early_stop,
+            capped_early_stop,
+        )
+    return capped_epochs, capped_early_stop
+
+
+def _evenly_spaced_indices(row_count, max_samples):
+    if row_count <= max_samples:
+        return None
+    return (np.arange(max_samples, dtype=np.float64) * row_count / max_samples).astype(
+        np.int64
+    )
+
+
+def _apply_app020_model_screen_sample_cap(
+    data, weights, max_samples_env_key, split_name, logger
+):
+    max_samples = _positive_int_env(max_samples_env_key)
+    if max_samples is None:
+        return data, weights
+
+    row_count = len(data)
+    indices = _evenly_spaced_indices(row_count, max_samples)
+    if indices is None:
+        return data, weights
+
+    capped_weights = weights[indices]
+    if hasattr(data, "idx_map") and hasattr(data, "data_index"):
+        data.idx_map = data.idx_map[indices]
+        data.data_index = data.data_index[indices]
+        capped_data = data
+    elif isinstance(data, pd.DataFrame):
+        capped_data = data.iloc[indices]
+    elif isinstance(data, np.ndarray):
+        capped_data = data[indices]
+    else:
+        raise TypeError(
+            "APP020 model screen sample cap does not support "
+            f"{split_name} data type {type(data).__name__}"
+        )
+
+    logger.info(
+        "APP020 model screen sample cap applied to %s: %s -> %s samples",
+        split_name,
+        row_count,
+        len(capped_data),
+    )
+    return capped_data, capped_weights
 
 
 class GeneralPTNN(Model):
@@ -78,6 +176,9 @@ class GeneralPTNN(Model):
         # Set logger.
         self.logger = get_module_logger("GeneralPTNN")
         self.logger.info("GeneralPTNN pytorch version...")
+        n_epochs, early_stop = _apply_app020_model_screen_epoch_cap(
+            n_epochs, early_stop, self.logger
+        )
 
         # set hyper-parameters.
         self.n_epochs = n_epochs
@@ -272,6 +373,21 @@ class GeneralPTNN(Model):
             wl_valid = reweighter.reweight(dl_valid)
         else:
             raise ValueError("Unsupported reweighter type.")
+
+        dl_train, wl_train = _apply_app020_model_screen_sample_cap(
+            dl_train,
+            wl_train,
+            APP020_MODEL_SCREEN_MAX_TRAIN_SAMPLES_ENV_KEY,
+            "train",
+            self.logger,
+        )
+        dl_valid, wl_valid = _apply_app020_model_screen_sample_cap(
+            dl_valid,
+            wl_valid,
+            APP020_MODEL_SCREEN_MAX_VALID_SAMPLES_ENV_KEY,
+            "valid",
+            self.logger,
+        )
 
         # Preprocess for data.  To align to Dataset Interface for DataLoader
         if ists:
